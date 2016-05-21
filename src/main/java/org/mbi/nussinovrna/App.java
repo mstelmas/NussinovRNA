@@ -17,7 +17,7 @@ public class App extends JFrame {
 
     private App() {
 
-        final RnaSequence rnaSequence = new RnaSequence("ACAC");
+        final RnaSequence rnaSequence = RnaSequence.of("ACAC");
         final RnaSecondaryStruct rnaSecondaryStruct = secondaryStructAlgorithm.execute(rnaSequence);
 
 
