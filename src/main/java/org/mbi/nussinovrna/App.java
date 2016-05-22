@@ -13,12 +13,11 @@ public class App extends JFrame {
 
     private final JButton helloButton = new JButton("Click Me!");
 
-    private final SecondaryStructAlgorithm secondaryStructAlgorithm = new NussinovAlgorithm();
-
     private App() {
 
-        final RnaSequence rnaSequence = RnaSequence.of("ACAC");
-        final RnaSecondaryStruct rnaSecondaryStruct = secondaryStructAlgorithm.execute(rnaSequence);
+        final RnaSequence rnaSequence = RnaSequence.of("GCACGACG");
+        final NussinovAlgorithm nussinovAlgorithm = new NussinovAlgorithm(rnaSequence);
+        final RnaSecondaryStruct rnaSecondaryStruct = nussinovAlgorithm.getRnaSecondaryStruct();
 
 
         helloButton.addActionListener(actionListener -> {

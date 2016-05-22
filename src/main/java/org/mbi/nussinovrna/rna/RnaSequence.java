@@ -38,6 +38,10 @@ public final class RnaSequence {
         return sequence;
     }
 
+    public int getLength() {
+        return sequence.length();
+    }
+
     public List<RnaNucleotide> getAsList() {
         if(listOfNucleitides == null) {
             listOfNucleitides = sequence.chars()
