@@ -50,4 +50,10 @@ public class RnaSequenceTest {
                 .containsExactlyElementsOf(VALID_TEST_SEQUENCE_LIST);
 
     }
+
+    @Test
+    public void shouldAllowLowerCaseNucleotidesNames() {
+        final RnaSequence rnaSequence = RnaSequence.of(VALID_TEST_SEQUENCE.toLowerCase());
+        assertThat(rnaSequence.getAsString()).isEqualTo(VALID_TEST_SEQUENCE);
+    }
 }

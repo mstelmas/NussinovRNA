@@ -2,6 +2,7 @@ package org.mbi.nussinovrna.rna;
 
 import lombok.EqualsAndHashCode;
 import lombok.NonNull;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,17 +22,20 @@ public final class RnaSequence {
 
 
     public static RnaSequence of(@NonNull final String sequence) {
-        if(sequence.isEmpty()) {
+
+        final String upperCasedSequence = sequence.toUpperCase();
+
+        if(upperCasedSequence.isEmpty()) {
             throw new IllegalArgumentException("RNASequence cannot be empty!");
         }
 
-        if(sequence.length() % 2 != 0) {
+        if(upperCasedSequence.length() % 2 != 0) {
             throw new IllegalArgumentException("RNASequence cannot be of odd length!");
         }
 
-        validateSequenceIntegrity(sequence);
+        validateSequenceIntegrity(upperCasedSequence);
 
-        return new RnaSequence(sequence);
+        return new RnaSequence(upperCasedSequence);
     }
 
     public String getAsString() {

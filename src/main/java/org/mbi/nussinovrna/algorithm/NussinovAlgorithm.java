@@ -7,7 +7,9 @@ import org.mbi.nussinovrna.rna.RnaNucleotide;
 import org.mbi.nussinovrna.rna.RnaSecondaryStruct;
 import org.mbi.nussinovrna.rna.RnaSequence;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.mbi.nussinovrna.rna.RnaNucleotide.*;
@@ -32,6 +34,7 @@ public final class NussinovAlgorithm {
                 .put(UnorderedPair.of(U, U), 0)
                 .build();
 
+    private final Map<Integer, Integer> pairs = new HashMap<>();
 
     @Getter
     private final RnaSecondaryStruct rnaSecondaryStruct;
@@ -48,8 +51,13 @@ public final class NussinovAlgorithm {
 
     private RnaSecondaryStruct applyAlgorithm() {
         createNussinovMatrix();
+        checkPair(0, rnaSequenceLength - 1);
 
-        return new RnaSecondaryStruct();
+        return RnaSecondaryStruct.builder()
+                .rnaSequence(rnaSequence)
+                .secondaryStructMap(pairs)
+                .nussinovMap(nussinovMatrix)
+                .build();
     }
 
     private void createNussinovMatrix() {
@@ -86,6 +94,30 @@ public final class NussinovAlgorithm {
                 }
             });
         });
+    }
+
+    private void checkPair(final int i, final int j) {
+        final List<RnaNucleotide> rnaSequenceAsList = rnaSequence.getAsList();
+
+        if(i < j) {
+            if(nussinovMatrix[i][j] == nussinovMatrix[i + 1][j]) {
+                checkPair(i + 1, j);
+            } else if(nussinovMatrix[i][j] == nussinovMatrix[i][j - 1]) {
+                checkPair(i, j - 1);
+            } else if(nussinovMatrix[i][j] == nussinovMatrix[i + 1][j - 1] +
+                    NUCLEOTIDE_PAIRS_MAPPING.get(UnorderedPair.of(rnaSequenceAsList.get(i), rnaSequenceAsList.get(j)))) {
+                pairs.put(i, j);
+                checkPair(i + 1, j - 1);
+            }
+        } else {
+            for(int k = i + 1; k < j; k++) {
+                if(nussinovMatrix[i][j] == nussinovMatrix[i][k] + nussinovMatrix[k + 1][j]) {
+                    checkPair(i, k);
+                    checkPair(k + 1, j);
+                    break;
+                }
+            }
+        }
     }
 
 }
