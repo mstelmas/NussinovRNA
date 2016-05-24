@@ -20,6 +20,7 @@ public final class NussinovAlgorithm {
     private final RnaSequence rnaSequence;
     private final int rnaSequenceLength;
 
+
     private final ImmutableMap<UnorderedPair<RnaNucleotide>, Integer> NUCLEOTIDE_PAIRS_MAPPING =
             new ImmutableMap.Builder<UnorderedPair<RnaNucleotide>, Integer>()
                 .put(UnorderedPair.of(A, A), 0)

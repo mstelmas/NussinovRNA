@@ -2,6 +2,8 @@ package org.mbi.nussinovrna;
 
 import javaslang.control.Try;
 import org.mbi.nussinovrna.algorithm.NussinovAlgorithm;
+import org.mbi.nussinovrna.gui.NussinovMatrixGrid;
+import org.mbi.nussinovrna.gui.NussinovMatrixPanel;
 import org.mbi.nussinovrna.rna.RnaSequence;
 
 import javax.swing.*;
@@ -30,9 +32,8 @@ public class App extends JFrame {
     private final TitledBorder secondaryStructurePanelBorder = BorderFactory.createTitledBorder("RNA Secondary Structure");
 
 
-    private final JPanel nussinovMatrixPanel = new JPanel();
-    private final JTextArea nussinovMatrixArea = new JTextArea(30, 40);
-    private final JTextArea nussinovRnaSecStructArea = new JTextArea(2, 30);
+    private final NussinovMatrixPanel nussinovMatrixPanel = new NussinovMatrixPanel(new NussinovMatrixGrid());
+    private final JScrollPane nussinovMatrixScrollPane = new JScrollPane(nussinovMatrixPanel);
 
     private final JPanel nussinovPredictedStructurePanel = new JPanel();
 
@@ -81,10 +82,16 @@ public class App extends JFrame {
         rnaSequenceCalculateButton.addActionListener(calculateButtonActionListener);
         rnaSequenceClearButton.addActionListener(clearButtonActionListener);
 
-        nussinovMatrixPanel.add(nussinovMatrixArea);
+
+        nussinovMatrixPanel.setAutoscrolls(true);
+
 
         framePanel.add(rnaSequencePanel, BorderLayout.WEST);
-        framePanel.add(nussinovTabbedPane, BorderLayout.EAST);
+        nussinovMatrixPanel.setPreferredSize(new Dimension(400, 400));
+        nussinovMatrixScrollPane.setViewportView(nussinovMatrixPanel);
+        nussinovMatrixScrollPane.setPreferredSize(new Dimension(100, 100));
+        framePanel.add(nussinovTabbedPane, BorderLayout.CENTER);
+//        framePanel.add(nussinovMatrixScrollPane, BorderLayout.CENTER);
 
         this.setJMenuBar(menuBar);
         this.getContentPane().add(framePanel);
@@ -94,7 +101,11 @@ public class App extends JFrame {
         final JTabbedPane nussinovTabbedPane = new JTabbedPane();
         nussinovTabbedPane.setBorder(secondaryStructurePanelBorder);
 
-        nussinovTabbedPane.addTab("Nussinov Matrix", nussinovMatrixPanel);
+
+//        nussinovMatrixScrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
+//        nussinovMatrixScrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_ALWAYS);
+//
+        nussinovTabbedPane.addTab("Nussinov Matrix", nussinovMatrixScrollPane);
         nussinovTabbedPane.addTab("Secondary Structure", nussinovPredictedStructurePanel);
 
         return nussinovTabbedPane;
@@ -131,17 +142,12 @@ public class App extends JFrame {
             JOptionPane.showMessageDialog(this, e.getMessage(), "Invalid RNA sequence", JOptionPane.ERROR_MESSAGE);
             rnaSequenceTextArea.selectAll();
             rnaSequenceTextArea.requestFocus();
-
-            nussinovMatrixArea.setText("");
-
-        }).onSuccess(rnaSecondaryStruct -> {
-            nussinovMatrixArea.setText(rnaSecondaryStruct.getNussinovMatrixAsString());
-            nussinovRnaSecStructArea.setText(rnaSecondaryStruct.getSecondaryStructMap().toString());
-        });
+        }).onSuccess(nussinovMatrixPanel::setRnaSecondaryStruct);
     };
 
     private ActionListener clearButtonActionListener = actionEvent -> {
         rnaSequenceTextArea.setText("");
+        nussinovMatrixPanel.setRnaSecondaryStruct(null);
     };
 
     private ActionListener exitMenuItemActionListener = actionEvent -> {
@@ -162,7 +168,6 @@ public class App extends JFrame {
                     final RnaSequence loadedRnaSequence = RnaSequence.of(fileContent);
 
                     rnaSequenceTextArea.setText(loadedRnaSequence.getAsString());
-                    nussinovMatrixArea.setText("");
                 }).onFailure(e -> {
                     JOptionPane.showMessageDialog(this, e.getMessage(), "Error reading RNA sequence from file!", JOptionPane.ERROR_MESSAGE);
                 });
