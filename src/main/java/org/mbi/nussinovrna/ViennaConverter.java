@@ -10,6 +10,12 @@ import org.mbi.nussinovrna.rna.RnaSecondaryStruct;
 import java.util.Stack;
 import java.util.function.IntPredicate;
 
+
+/* This is a "custom" version of a Vienna format converter. It makes heavy use of
+   several assumptions based on a way in which secondary structure is being generated
+   in this project!
+ */
+
 /* TODO: Make this converter more generic */
 /* TODO: Refactor */
 public class ViennaConverter {
