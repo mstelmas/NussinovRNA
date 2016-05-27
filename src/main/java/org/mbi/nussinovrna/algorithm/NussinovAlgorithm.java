@@ -52,7 +52,7 @@ public final class NussinovAlgorithm {
 
     private RnaSecondaryStruct applyAlgorithm() {
         createNussinovMatrix();
-        checkPair(0, rnaSequenceLength - 1);
+        traceback(0, rnaSequenceLength - 1);
 
         return RnaSecondaryStruct.builder()
                 .rnaSequence(rnaSequence)
@@ -97,28 +97,32 @@ public final class NussinovAlgorithm {
         });
     }
 
-    private void checkPair(final int i, final int j) {
+    /*
+        Traceback through the calculated matrix starting from @(iPos, jPos) position to find
+        one of the maximally base paired structures.
+     */
+    private void traceback(final int iPos, final int jPos) {
+
         final List<RnaNucleotide> rnaSequenceAsList = rnaSequence.getAsList();
 
-        if(i < j) {
-            if(nussinovMatrix[i][j] == nussinovMatrix[i + 1][j]) {
-                checkPair(i + 1, j);
-            } else if(nussinovMatrix[i][j] == nussinovMatrix[i][j - 1]) {
-                checkPair(i, j - 1);
-            } else if(nussinovMatrix[i][j] == nussinovMatrix[i + 1][j - 1] +
-                    NUCLEOTIDE_PAIRS_MAPPING.get(UnorderedPair.of(rnaSequenceAsList.get(i), rnaSequenceAsList.get(j)))) {
-                pairs.put(i, j);
-                checkPair(i + 1, j - 1);
-            }
-        } else {
-            for(int k = i + 1; k < j; k++) {
-                if(nussinovMatrix[i][j] == nussinovMatrix[i][k] + nussinovMatrix[k + 1][j]) {
-                    checkPair(i, k);
-                    checkPair(k + 1, j);
-                    break;
+        if(iPos < jPos) {
+            if (nussinovMatrix[iPos][jPos] == nussinovMatrix[iPos + 1][jPos]) {
+                traceback(iPos + 1, jPos);
+            } else if (nussinovMatrix[iPos][jPos] == nussinovMatrix[iPos][jPos - 1]) {
+                traceback(iPos, jPos - 1);
+            } else if (nussinovMatrix[iPos][jPos] == nussinovMatrix[iPos + 1][jPos - 1] +
+                    NUCLEOTIDE_PAIRS_MAPPING.get(UnorderedPair.of(rnaSequenceAsList.get(iPos), rnaSequenceAsList.get(jPos)))) {
+                pairs.put(iPos, jPos);
+                traceback(iPos + 1, jPos - 1);
+            } else {
+                for (int k = iPos + 1; k < jPos; k++) {
+                    if (nussinovMatrix[iPos][jPos] == nussinovMatrix[iPos][k] + nussinovMatrix[k + 1][jPos]) {
+                        traceback(iPos, k);
+                        traceback(k + 1, jPos);
+                        break;
+                    }
                 }
             }
         }
     }
-
 }
