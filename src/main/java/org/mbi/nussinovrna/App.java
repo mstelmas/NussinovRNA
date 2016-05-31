@@ -1,5 +1,6 @@
 package org.mbi.nussinovrna;
 
+import com.google.common.collect.ImmutableMap;
 import fr.orsay.lri.varna.VARNAPanel;
 import fr.orsay.lri.varna.models.export.SwingGraphics;
 import fr.orsay.lri.varna.models.export.VueVARNAGraphics;
@@ -10,6 +11,7 @@ import org.mbi.nussinovrna.algorithm.NussinovAlgorithm;
 import org.mbi.nussinovrna.gui.EnergyScorePanel;
 import org.mbi.nussinovrna.gui.NussinovMatrixGrid;
 import org.mbi.nussinovrna.gui.NussinovMatrixPanel;
+import org.mbi.nussinovrna.rna.RnaNucleotide;
 import org.mbi.nussinovrna.rna.RnaSequence;
 
 import javax.imageio.ImageIO;
@@ -23,10 +25,29 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.Optional;
 
+import static org.mbi.nussinovrna.rna.RnaNucleotide.*;
+import static org.mbi.nussinovrna.rna.RnaNucleotide.G;
+import static org.mbi.nussinovrna.rna.RnaNucleotide.U;
+
 @Log
 public class App extends JFrame {
 
     private final static String APP_TITLE = "Nussinov Algorithm";
+
+    private final ImmutableMap<UnorderedPair<RnaNucleotide>, Integer> defaultEnergyScoring =
+            new ImmutableMap.Builder<UnorderedPair<RnaNucleotide>, Integer>()
+                    .put(UnorderedPair.of(A, A), 0)
+                    .put(UnorderedPair.of(A, C), 0)
+                    .put(UnorderedPair.of(A, G), 0)
+                    .put(UnorderedPair.of(A, U), 1)
+                    .put(UnorderedPair.of(C, C), 0)
+                    .put(UnorderedPair.of(C, G), 1)
+                    .put(UnorderedPair.of(C, U), 0)
+                    .put(UnorderedPair.of(G, G), 0)
+                    .put(UnorderedPair.of(G, U), 0)
+                    .put(UnorderedPair.of(U, U), 0)
+                    .build();
+
 
     private final JPanel framePanel = new JPanel(new MigLayout("fill"));
 
@@ -50,7 +71,7 @@ public class App extends JFrame {
     private final NussinovMatrixPanel nussinovMatrixPanel = new NussinovMatrixPanel(new NussinovMatrixGrid());
     private final JScrollPane nussinovMatrixScrollPane = new JScrollPane(nussinovMatrixPanel);
 
-    private final EnergyScorePanel energyScorePanel = new EnergyScorePanel();
+    private final EnergyScorePanel energyScorePanel = new EnergyScorePanel(defaultEnergyScoring);
     private final TitledBorder energyScorePanelBorder = BorderFactory.createTitledBorder("Energy Scores");
 
 
@@ -218,7 +239,7 @@ public class App extends JFrame {
         Try.of (() ->
                 Optional.ofNullable(rnaSequenceTextArea.getText())
                     .map(RnaSequence::of)
-                    .map(NussinovAlgorithm::new)
+                    .map(rnaSequence -> new NussinovAlgorithm(rnaSequence, energyScorePanel.getCurrentEnergyScores()))
                     .map(NussinovAlgorithm::getRnaSecondaryStruct)
                     .get()
         ).onFailure(e -> {
@@ -236,7 +257,7 @@ public class App extends JFrame {
                         predictedSecondaryStructure.getRnaSequence().getAsString(),
                         viennaFormat
                 );
-            }).onFailure(e -> JOptionPane.showMessageDialog(this, e.getMessage(), "No i dupa", JOptionPane.ERROR_MESSAGE));
+            }).onFailure(e -> JOptionPane.showMessageDialog(this, e.getMessage(), "", JOptionPane.ERROR_MESSAGE));
         });
     };
 
