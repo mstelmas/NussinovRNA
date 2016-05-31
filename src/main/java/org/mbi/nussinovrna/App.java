@@ -1,17 +1,18 @@
 package org.mbi.nussinovrna;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import fr.orsay.lri.varna.VARNAPanel;
 import fr.orsay.lri.varna.models.export.SwingGraphics;
 import fr.orsay.lri.varna.models.export.VueVARNAGraphics;
+import javaslang.control.Match;
 import javaslang.control.Try;
 import lombok.extern.java.Log;
 import net.miginfocom.swing.MigLayout;
 import org.mbi.nussinovrna.algorithm.NussinovAlgorithm;
+import org.mbi.nussinovrna.algorithm.scoring.*;
 import org.mbi.nussinovrna.gui.EnergyScorePanel;
 import org.mbi.nussinovrna.gui.NussinovMatrixGrid;
 import org.mbi.nussinovrna.gui.NussinovMatrixPanel;
-import org.mbi.nussinovrna.rna.RnaNucleotide;
 import org.mbi.nussinovrna.rna.RnaSequence;
 
 import javax.imageio.ImageIO;
@@ -24,34 +25,27 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.Optional;
-
-import static org.mbi.nussinovrna.rna.RnaNucleotide.*;
-import static org.mbi.nussinovrna.rna.RnaNucleotide.G;
-import static org.mbi.nussinovrna.rna.RnaNucleotide.U;
+import java.util.logging.Level;
 
 @Log
 public class App extends JFrame {
 
     private final static String APP_TITLE = "Nussinov Algorithm";
 
-    private final ImmutableMap<UnorderedPair<RnaNucleotide>, Integer> defaultEnergyScoring =
-            new ImmutableMap.Builder<UnorderedPair<RnaNucleotide>, Integer>()
-                    .put(UnorderedPair.of(A, A), 0)
-                    .put(UnorderedPair.of(A, C), 0)
-                    .put(UnorderedPair.of(A, G), 0)
-                    .put(UnorderedPair.of(A, U), 1)
-                    .put(UnorderedPair.of(C, C), 0)
-                    .put(UnorderedPair.of(C, G), 1)
-                    .put(UnorderedPair.of(C, U), 0)
-                    .put(UnorderedPair.of(G, G), 0)
-                    .put(UnorderedPair.of(G, U), 0)
-                    .put(UnorderedPair.of(U, U), 0)
-                    .build();
-
-
     private final JPanel framePanel = new JPanel(new MigLayout("fill"));
 
     private JPanel leftPanel;
+
+    private static final ImmutableList<EnergyScoringStrategy> PREDEFINED_ENERGY_SCORINGS =
+            new ImmutableList.Builder<EnergyScoringStrategy>()
+                    .add(new DefaultScoringStrategy())
+                    .add(new Pam250ScoringStrategy())
+                    .add(new Blosum62ScoringStrategy())
+                    .add(new Vtml160ScoringStrategy())
+                    .add(new Penalized1ScoringStrategy())
+                    .add(new Penalized2ScoringStrategy())
+                    .add(new Penalized3ScoringStrategy())
+                    .build();
 
     private final JPanel rnaSequenceAreaPanel = new JPanel();
     private final TitledBorder rnaSequenceAreaPanelBorder = BorderFactory.createTitledBorder("RNA Sequence");
@@ -71,9 +65,12 @@ public class App extends JFrame {
     private final NussinovMatrixPanel nussinovMatrixPanel = new NussinovMatrixPanel(new NussinovMatrixGrid());
     private final JScrollPane nussinovMatrixScrollPane = new JScrollPane(nussinovMatrixPanel);
 
-    private final EnergyScorePanel energyScorePanel = new EnergyScorePanel(defaultEnergyScoring);
+    private final EnergyScorePanel energyScorePanel = new EnergyScorePanel(PREDEFINED_ENERGY_SCORINGS.get(0));
     private final TitledBorder energyScorePanelBorder = BorderFactory.createTitledBorder("Energy Scores");
 
+    private final JComboBox<EnergyScoringStrategy> energyScoringStrategyJComboBox = new JComboBox<>(
+            new DefaultComboBoxModel(PREDEFINED_ENERGY_SCORINGS.toArray())
+    );
 
     private JMenuBar menuBar;
 
@@ -142,7 +139,12 @@ public class App extends JFrame {
 
         leftPanel.add(rnaSequenceAreaPanel, "wrap, push, grow");
 
+        energyScoringStrategyJComboBox.setRenderer(energyScoresComboBoxRenderer);
+        energyScoringStrategyJComboBox.addActionListener(energyScoresComboBoxListener);
+
         energyScorePanel.setBorder(energyScorePanelBorder);
+
+        leftPanel.add(energyScoringStrategyJComboBox, "wrap");
 
         leftPanel.add(energyScorePanel, "wrap, push, grow");
 
@@ -153,6 +155,40 @@ public class App extends JFrame {
 
         return leftPanel;
     }
+
+    private final ListCellRenderer energyScoresComboBoxRenderer = new DefaultListCellRenderer() {
+
+        @Override
+        public Component getListCellRendererComponent(final JList<?> list, final Object value,
+                                                      final int index, final boolean isSelected,
+                                                      final boolean cellHasFocus) {
+
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+            if(value instanceof EnergyScoringStrategy) {
+                setText(((EnergyScoringStrategy)value).getStrategyName());
+            }
+
+            return this;
+        }
+    };
+
+    private final ActionListener energyScoresComboBoxListener = (actionEvent) -> {
+        if(actionEvent.getSource() instanceof JComboBox) {
+            final JComboBox comboBoxSource = (JComboBox) actionEvent.getSource();
+
+            if(comboBoxSource.getSelectedItem() instanceof EnergyScoringStrategy) {
+                final EnergyScoringStrategy selectedScoringStrategy = (EnergyScoringStrategy) comboBoxSource.getSelectedItem();
+
+                log.log(Level.INFO, String.format("Loading selected Scoring Strategy: %s", selectedScoringStrategy.getStrategyName()));
+
+                energyScorePanel.loadEnergyScores(selectedScoringStrategy);
+
+            } else {
+                log.warning("Invalid selected item type (no EnergyScoringStrategy) ...?!");
+            }
+        }
+    };
 
     private JPanel buildPredictedSecondaryStructurePanel() {
         final JPanel nussinovPredictedStructurePanel = new JPanel();
@@ -176,6 +212,8 @@ public class App extends JFrame {
 
         return nussinovTabbedPane;
     }
+
+
 
     private JMenuBar buildMenuBar() {
 

@@ -1,10 +1,13 @@
 package org.mbi.nussinovrna.gui;
 
 import javaslang.control.Try;
+import lombok.NonNull;
 import lombok.extern.java.Log;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.mbi.nussinovrna.NumericDocumentFilter;
 import org.mbi.nussinovrna.UnorderedPair;
+import org.mbi.nussinovrna.algorithm.scoring.EnergyScoringStrategy;
 import org.mbi.nussinovrna.rna.RnaNucleotide;
 
 import javax.swing.*;
@@ -37,16 +40,15 @@ public class EnergyScorePanel extends JPanel {
 
     private final DocumentFilter numericDocumentFilter = new NumericDocumentFilter();
 
-    public EnergyScorePanel(final Map<UnorderedPair<RnaNucleotide>, Integer> defaultEnergyScores) {
+    public EnergyScorePanel(@NonNull final EnergyScoringStrategy energyScoringStrategy) {
 
         setLayout(energyScorePanelLayout);
         setFocusable(true);
 
         buildGUI();
 
-        loadEnergyScores(defaultEnergyScores);
+        loadEnergyScores(energyScoringStrategy);
     }
-
 
     private Function<JTextField, Integer> toEnergyScoreValue = jTextField ->
             Try.of(() -> Optional.ofNullable(jTextField.getText()).map(Integer::valueOf).orElse(0))
@@ -59,11 +61,13 @@ public class EnergyScorePanel extends JPanel {
 
 
     // TODO: validation!!!
-    private void loadEnergyScores(final Map<UnorderedPair<RnaNucleotide>, Integer> defaultEnergyScores) {
+    public void loadEnergyScores(@NonNull final EnergyScoringStrategy energyScoringStrategy) {
+
+        final Map<UnorderedPair<RnaNucleotide>, Integer> scoringStrategy = energyScoringStrategy.getScoringStrategy();
 
         energyScoresMap.entrySet().stream().forEach(energyScoresMapEntrySet -> {
 
-            final Optional<Integer> energyValue = Optional.ofNullable(defaultEnergyScores.get(energyScoresMapEntrySet.getKey()));
+            final Optional<Integer> energyValue = Optional.ofNullable(scoringStrategy.get(energyScoresMapEntrySet.getKey()));
 
             if(!energyValue.isPresent()) {
                 log.warning("Energy has no value...defaulting to 0");
@@ -73,7 +77,6 @@ public class EnergyScorePanel extends JPanel {
                     energyValue.map(val -> Integer.toString(val)).orElse("0")
             );
         });
-
     }
 
     // TODO: Potentially risky?!
@@ -95,7 +98,7 @@ public class EnergyScorePanel extends JPanel {
                 final JTextField energyValueTextField = (JTextField) focusEvent.getComponent();
                 final String energyValue = energyValueTextField.getText();
 
-                if(StringUtils.isBlank(energyValue)) {
+                if(StringUtils.isBlank(energyValue) || !NumberUtils.isNumber(energyValue)) {
                     if(!currentEnergyTextFieldValue.isPresent()) {
                         log.warning("Cannot restore previous value for energy text field?! Setting to 0");
                         energyValueTextField.setText("0");
