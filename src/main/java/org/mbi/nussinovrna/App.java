@@ -4,8 +4,8 @@ import com.google.common.collect.ImmutableList;
 import fr.orsay.lri.varna.VARNAPanel;
 import fr.orsay.lri.varna.models.export.SwingGraphics;
 import fr.orsay.lri.varna.models.export.VueVARNAGraphics;
-import javaslang.control.Match;
 import javaslang.control.Try;
+import lombok.NonNull;
 import lombok.extern.java.Log;
 import net.miginfocom.swing.MigLayout;
 import org.mbi.nussinovrna.algorithm.NussinovAlgorithm;
@@ -26,11 +26,14 @@ import java.io.File;
 import java.nio.file.Files;
 import java.util.Optional;
 import java.util.logging.Level;
+import java.util.stream.Stream;
+
 
 @Log
 public class App extends JFrame {
 
     private final static String APP_TITLE = "Nussinov Algorithm";
+    private final static Optional<String> PREFERRED_LOOK_AND_FEEL = Optional.of("Nimbus");
 
     private final JPanel framePanel = new JPanel(new MigLayout("fill"));
 
@@ -86,11 +89,7 @@ public class App extends JFrame {
 
     private App() {
 
-        Try.run(() -> {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        }).onFailure((e) -> {
-            log.info("Using default Look and Feel manager...");
-        });
+        setUpLookAndFeel().onFailure((e) -> log.warning("Could not load system default theme! Oh well..."));
 
         buildGui();
 
@@ -99,6 +98,37 @@ public class App extends JFrame {
         this.setLocationByPlatform(true);
         this.pack();
         this.setVisible(true);
+    }
+
+    public static void main(final String[] args) {
+        SwingUtilities.invokeLater(App::new);
+    }
+
+    private Try<Void> setUpLookAndFeel() {
+
+        if(PREFERRED_LOOK_AND_FEEL.isPresent()) {
+            return loadLookAndFeelTheme(PREFERRED_LOOK_AND_FEEL.get())
+                    .onFailure((e) -> log.warning(
+                            String.format("Could not load theme: %s, loading system default theme...", PREFERRED_LOOK_AND_FEEL.get()))
+                    )
+                    .orElse(this::loadSystemLookAndFeel);
+        }
+
+        return loadSystemLookAndFeel();
+    }
+
+    Try<Void> loadLookAndFeelTheme(@NonNull final String lookAndFeelTheme) {
+        return Try.run(() -> UIManager.setLookAndFeel(
+                Stream.of(UIManager.getInstalledLookAndFeels())
+                        .filter(lookAndFeelInfo -> lookAndFeelInfo.getName().equals(lookAndFeelTheme))
+                        .findAny()
+                        .map(UIManager.LookAndFeelInfo::getClassName)
+                        .orElseThrow(Exception::new)
+        ));
+    }
+
+    Try<Void> loadSystemLookAndFeel() {
+        return Try.run(() -> UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()));
     }
 
     private void buildGui() {
@@ -334,7 +364,4 @@ public class App extends JFrame {
         JOptionPane.showMessageDialog(this, "Not implemented!", "Not implemented", JOptionPane.INFORMATION_MESSAGE);
     };
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(App::new);
-    }
 }
