@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import fr.orsay.lri.varna.VARNAPanel;
 import fr.orsay.lri.varna.models.export.SwingGraphics;
 import fr.orsay.lri.varna.models.export.VueVARNAGraphics;
+import javaslang.control.Match;
 import javaslang.control.Try;
 import lombok.NonNull;
 import lombok.extern.java.Log;
@@ -195,30 +196,26 @@ public class App extends JFrame {
 
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
 
-            if(value instanceof EnergyScoringStrategy) {
-                setText(((EnergyScoringStrategy)value).getStrategyName());
-            }
+            Match.of(value)
+                    .whenType(EnergyScoringStrategy.class)
+                        .thenRun(energyScoringStrategy -> setText(energyScoringStrategy.getStrategyName()));
 
             return this;
         }
     };
 
-    private final ActionListener energyScoresComboBoxListener = (actionEvent) -> {
-        if(actionEvent.getSource() instanceof JComboBox) {
-            final JComboBox comboBoxSource = (JComboBox) actionEvent.getSource();
+    private final ActionListener energyScoresComboBoxListener = (actionEvent) ->
+        Match.of(actionEvent.getSource())
+                .whenType(JComboBox.class)
+                    .then(comboBoxSource ->
+                            Match.of(comboBoxSource.getSelectedItem())
+                                    .whenType(EnergyScoringStrategy.class)
+                                        .thenRun(energyScoringStrategy -> {
+                                            log.log(Level.INFO, String.format("Loading selected Scoring Strategy: %s", energyScoringStrategy.getStrategyName()));
+                                            energyScorePanel.loadEnergyScores(energyScoringStrategy);
+                                        })
+                    );
 
-            if(comboBoxSource.getSelectedItem() instanceof EnergyScoringStrategy) {
-                final EnergyScoringStrategy selectedScoringStrategy = (EnergyScoringStrategy) comboBoxSource.getSelectedItem();
-
-                log.log(Level.INFO, String.format("Loading selected Scoring Strategy: %s", selectedScoringStrategy.getStrategyName()));
-
-                energyScorePanel.loadEnergyScores(selectedScoringStrategy);
-
-            } else {
-                log.warning("Invalid selected item type (no EnergyScoringStrategy) ...?!");
-            }
-        }
-    };
 
     private JPanel buildPredictedSecondaryStructurePanel() {
         final JPanel nussinovPredictedStructurePanel = new JPanel();
@@ -363,5 +360,4 @@ public class App extends JFrame {
     private ActionListener saveMenuItemActionListener = actionEvent -> {
         JOptionPane.showMessageDialog(this, "Not implemented!", "Not implemented", JOptionPane.INFORMATION_MESSAGE);
     };
-
 }
