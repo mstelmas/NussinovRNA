@@ -10,6 +10,7 @@ import lombok.NonNull;
 import lombok.extern.java.Log;
 import net.miginfocom.layout.CC;
 import net.miginfocom.swing.MigLayout;
+import org.apache.commons.lang3.StringUtils;
 import org.mbi.nussinovrna.algorithm.NussinovAlgorithm;
 import org.mbi.nussinovrna.algorithm.scoring.*;
 import org.mbi.nussinovrna.converters.BpseqConverter;
@@ -66,9 +67,12 @@ public class App extends JFrame {
 
     /* Secondary Structure Formats */
     private final JLabel viennaLabel = new JLabel("Vienna format: ");
-    private final JLabel viennaFormatLabel = new JLabel();
+    private final JTextField viennaFormatTextField = new JTextField(15);
+    private final JScrollBar viennaFormatScrollBar = new JScrollBar(Adjustable.HORIZONTAL);
+    private final BoundedRangeModel viennaFormatBoundedRangeModel = viennaFormatTextField.getHorizontalVisibility();
     private final JButton viennaExportButton = new JButton("Export to file");
     private final JPanel viennaPanel = new JPanel(new MigLayout());
+
 
     private final JLabel bpseqLabel = new JLabel("BPSEQ format: ");
     private final JTextArea bpseqFormatTextArea = new JTextArea(20, 8);
@@ -220,11 +224,14 @@ public class App extends JFrame {
 
         nussinovPredictedStructurePanel.setLayout(new MigLayout("fill"));
 
-        viennaLabel.setLabelFor(viennaFormatLabel);
+        viennaLabel.setLabelFor(viennaFormatTextField);
+        viennaFormatTextField.setEditable(false);
+        viennaFormatScrollBar.setModel(viennaFormatBoundedRangeModel);
 
         viennaPanel.add(viennaLabel);
-        viennaPanel.add(viennaFormatLabel);
         viennaPanel.add(viennaExportButton, "wrap");
+        viennaPanel.add(viennaFormatTextField, "span, pushx, grow, wrap");
+        viennaPanel.add(viennaFormatScrollBar, "span, pushx, grow");
 
         nussinovPredictedStructurePanel.add(viennaPanel, "span, grow, pushx, wrap");
 
@@ -360,6 +367,7 @@ public class App extends JFrame {
     private ActionListener calculateButtonActionListener = actionEvent -> {
         Try.of (() ->
                 Optional.ofNullable(rnaSequenceTextArea.getText())
+                    .map(StringUtils::trim)
                     .map(RnaSequence::of)
                     .map(rnaSequence -> new NussinovAlgorithm(rnaSequence, energyScorePanel.getCurrentEnergyScores()))
                     .map(NussinovAlgorithm::getRnaSecondaryStruct)
@@ -373,7 +381,7 @@ public class App extends JFrame {
             final String viennaFormat = ViennaConverter.toViennaFormat(predictedSecondaryStructure);
 
             nussinovMatrixPanel.setRnaSecondaryStruct(predictedSecondaryStructure);
-            viennaFormatLabel.setText(viennaFormat);
+            viennaFormatTextField.setText(viennaFormat);
             bpseqFormatTextArea.setText(BpseqConverter.toBpseqFormat(predictedSecondaryStructure));
             ctFormatTextArea.setText(CtConverter.toCtFormat(predictedSecondaryStructure));
 
@@ -388,7 +396,7 @@ public class App extends JFrame {
 
     private ActionListener clearButtonActionListener = actionEvent -> {
         rnaSequenceTextArea.setText("");
-        viennaFormatLabel.setText("");
+        viennaFormatTextField.setText("");
         bpseqFormatTextArea.setText("");
         ctFormatTextArea.setText("");
         nussinovMatrixPanel.setRnaSecondaryStruct(null);
