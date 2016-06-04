@@ -1,3 +1,3 @@
 # NussinovRNA
 
-Building project uber-jar: mvn clean compile assembly:single
+Building project uber-jar: mvn clean compile test assembly:single
