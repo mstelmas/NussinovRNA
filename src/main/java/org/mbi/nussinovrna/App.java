@@ -109,13 +109,14 @@ public class App extends JFrame {
     private JMenuBar menuBar;
 
     private final JMenu fileMenu = new JMenu("File");
+    private final JMenu sequenceMenu = new JMenu("Sequence");
 
     private final JMenuItem exitMenuItem = new JMenuItem("Exit");
-    private final JMenuItem openMenuItem = new JMenuItem("Open");
-    private final JMenuItem saveMenuItem = new JMenuItem("Save");
+
+    private final JMenuItem importSequenceMenuItem = new JMenuItem("Import");
+    private final JMenuItem exportSequenceMenuItem = new JMenuItem("Export");
 
     private final JFileChooser rnaSequenceFileChooser = new JFileChooser();
-    private final JFileChooser secondaryStructureFileChooser = new JFileChooser();
 
     private final VARNAPanel varnaPanel = new VARNAPanel();
 
@@ -290,18 +291,17 @@ public class App extends JFrame {
 
         final JMenuBar menuBar = new JMenuBar();
 
-        openMenuItem.addActionListener(openMenuItemActionListener);
-        fileMenu.add(openMenuItem);
+        importSequenceMenuItem.addActionListener(openMenuItemActionListener);
+        sequenceMenu.add(importSequenceMenuItem);
 
-        saveMenuItem.addActionListener(saveMenuItemActionListener);
-        fileMenu.add(saveMenuItem);
-
-        fileMenu.addSeparator();
+        exportSequenceMenuItem.addActionListener(saveMenuItemActionListener);
+        sequenceMenu.add(exportSequenceMenuItem);
 
         exitMenuItem.addActionListener(exitMenuItemActionListener);
         fileMenu.add(exitMenuItem);
 
         menuBar.add(fileMenu);
+        menuBar.add(sequenceMenu);
 
         return menuBar;
     }
@@ -421,10 +421,7 @@ public class App extends JFrame {
         repaint();
     };
 
-    private ActionListener exitMenuItemActionListener = actionEvent -> {
-        // TODO: see if there is anything to save before exiting
-        System.exit(0);
-    };
+    private ActionListener exitMenuItemActionListener = actionEvent -> System.exit(0);
 
     private ActionListener openMenuItemActionListener = actionEvent -> {
         final int fileChooserDialogReturnValue = rnaSequenceFileChooser.showOpenDialog(this);
@@ -447,7 +444,14 @@ public class App extends JFrame {
     };
 
     private ActionListener saveMenuItemActionListener = actionEvent ->
-        JOptionPane.showMessageDialog(this, "Not implemented!", "Not implemented", JOptionPane.INFORMATION_MESSAGE);
+            Optional.ofNullable(rnaSequenceTextArea.getText())
+                    .map(StringUtils::trim)
+                    .ifPresent(rnaSequence ->
+                        saveTextWithFileChooser(rnaSequence)
+                            .onFailure(e ->
+                                    JOptionPane.showMessageDialog(this, e.getMessage(), "Error exporting RNA sequence", JOptionPane.ERROR_MESSAGE)
+                            )
+            );
 
     private ActionListener setZoomLevelActionListener = actionEvent ->
         Optional.ofNullable(setZoomLevelTextField.getText())
