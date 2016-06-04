@@ -2,6 +2,7 @@ package org.mbi.nussinovrna;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
+import org.mbi.nussinovrna.converters.ViennaConverter;
 import org.mbi.nussinovrna.exceptions.ViennaFormatException;
 import org.mbi.nussinovrna.rna.RnaSecondaryStruct;
 import org.mbi.nussinovrna.rna.RnaSequence;

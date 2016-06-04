@@ -1,4 +1,4 @@
-package org.mbi.nussinovrna;
+package org.mbi.nussinovrna.converters;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;

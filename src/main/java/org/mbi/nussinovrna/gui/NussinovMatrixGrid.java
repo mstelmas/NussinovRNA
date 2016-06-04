@@ -12,13 +12,13 @@ import java.util.stream.IntStream;
 public final class NussinovMatrixGrid extends JComponent {
 
     private final static int DEFAULT_CELL_SIZE = 40;
-    private final static double DEFAULT_ZOOM_LEVEL = 0.75;
+    private final static int DEFAULT_ZOOM_LEVEL = 75;
     private final static int DEFAULT_FONT_SIZE = 18;
     private final static Font DEFAULT_FONT =
-            new Font(null, Font.PLAIN, (int) (DEFAULT_FONT_SIZE * DEFAULT_ZOOM_LEVEL));
+            new Font(null, Font.PLAIN, (int) (DEFAULT_FONT_SIZE * DEFAULT_ZOOM_LEVEL / 100));
 
-    @Getter private int cellSize = (int) (DEFAULT_CELL_SIZE * DEFAULT_ZOOM_LEVEL);
-    @Getter private double zoomLevel = DEFAULT_ZOOM_LEVEL;
+    @Getter private int cellSize = (int) (DEFAULT_CELL_SIZE * DEFAULT_ZOOM_LEVEL / 100);
+    @Getter private double zoomLevel = DEFAULT_ZOOM_LEVEL / 100;
     @Getter private Font currentFont = DEFAULT_FONT;
 
     protected NussinovMatrixCell nussinovMatrixCells[][];
@@ -51,10 +51,18 @@ public final class NussinovMatrixGrid extends JComponent {
 
         this.rnaSecondaryStruct = rnaSecondaryStruct;
 
-        Optional.ofNullable(rnaSecondaryStruct).ifPresent(rnaSecondaryStruct1 -> {
-            createNussinovMatrix(rnaSecondaryStruct1.getNussinovMap().length, rnaSecondaryStruct1.getNussinovMap());
-            calculateAreaSize();
-        });
+        if(rnaSecondaryStruct != null) {
+            createNussinovMatrix(rnaSecondaryStruct.getNussinovMap().length, rnaSecondaryStruct.getNussinovMap());
+        } else {
+            createNussinovMatrix(0, null);
+        }
+
+//        Optional.ofNullable(rnaSecondaryStruct).ifPresent(rnaSecondaryStruct1 -> {
+//            createNussinovMatrix(rnaSecondaryStruct1.getNussinovMap().length, rnaSecondaryStruct1.getNussinovMap());
+////            calculateAreaSize();
+//        });
+
+        calculateAreaSize();
 
     }
 
@@ -141,15 +149,23 @@ public final class NussinovMatrixGrid extends JComponent {
         });
     }
 
-    public void setZoomLevel(final double zoomLevel) {
+    public void setZoomLevel(final int zoomLevel) {
         this.zoomLevel = zoomLevel;
 
-        cellSize = (int) (DEFAULT_CELL_SIZE * zoomLevel);
+        cellSize =  (DEFAULT_CELL_SIZE * zoomLevel / 100);
 
-        currentFont = new Font(null, Font.PLAIN, (int) (DEFAULT_FONT_SIZE * zoomLevel));
+        currentFont = new Font(null, Font.PLAIN, (DEFAULT_FONT_SIZE * zoomLevel) / 100);
         setFont(currentFont);
 
         areaSize = null;
     }
 
+    @Override
+    public Dimension getPreferredSize() {
+        if(areaSize == null) {
+            calculateAreaSize();
+        }
+
+        return areaSize;
+    }
 }

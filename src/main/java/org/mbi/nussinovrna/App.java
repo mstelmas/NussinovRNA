@@ -9,8 +9,12 @@ import javaslang.control.Try;
 import lombok.NonNull;
 import lombok.extern.java.Log;
 import net.miginfocom.swing.MigLayout;
+import org.apache.commons.lang3.StringUtils;
 import org.mbi.nussinovrna.algorithm.NussinovAlgorithm;
 import org.mbi.nussinovrna.algorithm.scoring.*;
+import org.mbi.nussinovrna.converters.BpseqConverter;
+import org.mbi.nussinovrna.converters.CtConverter;
+import org.mbi.nussinovrna.converters.ViennaConverter;
 import org.mbi.nussinovrna.gui.EnergyScorePanel;
 import org.mbi.nussinovrna.gui.NussinovMatrixGrid;
 import org.mbi.nussinovrna.gui.NussinovMatrixPanel;
@@ -60,17 +64,43 @@ public class App extends JFrame {
 
     private final JButton saveRnaImageButton = new JButton("Save to file");
 
+    /* Secondary Structure Formats */
     private final JLabel viennaLabel = new JLabel("Vienna format: ");
-    private final JLabel viennaFormatLabel = new JLabel();
+    private final JTextField viennaFormatTextField = new JTextField(15);
+    private final JScrollBar viennaFormatScrollBar = new JScrollBar(Adjustable.HORIZONTAL);
+    private final BoundedRangeModel viennaFormatBoundedRangeModel = viennaFormatTextField.getHorizontalVisibility();
+    private final JButton viennaExportButton = new JButton("Export to file");
+    private final JPanel viennaPanel = new JPanel(new MigLayout());
 
-    private JTabbedPane nussinovTabbedPane;
+
+    private final JLabel bpseqLabel = new JLabel("BPSEQ format: ");
+    private final JTextArea bpseqFormatTextArea = new JTextArea(20, 8);
+    private final JButton bpseqExportButton = new JButton("Export to file");
+    private final JPanel bpseqPanel = new JPanel(new MigLayout());
+
+    private final JLabel ctLabel = new JLabel("CT Format: ");
+    private final JTextArea ctFormatTextArea = new JTextArea(20, 15);
+    private final JButton ctExportButton = new JButton("Export to file");
+    private final JPanel ctPanel = new JPanel(new MigLayout());
+
+    private JTabbedPane rightPanel;
 
 
-    private final NussinovMatrixPanel nussinovMatrixPanel = new NussinovMatrixPanel(new NussinovMatrixGrid());
+    private final NussinovMatrixGrid nussinovMatrixGrid = new NussinovMatrixGrid();
+    private final NussinovMatrixPanel nussinovMatrixPanel = new NussinovMatrixPanel(nussinovMatrixGrid);
+
     private final JScrollPane nussinovMatrixScrollPane = new JScrollPane(nussinovMatrixPanel);
+
+    // Zoom
+    private final JPanel zoomLevelPanel = new JPanel(new MigLayout());
+    private final JButton setZoomLevelButton = new JButton("Set zoom");
+    private final JTextField setZoomLevelTextField = new JTextField(10);
+
+    private final JPanel nussinovMatrixTopPanel = new JPanel(new BorderLayout());
 
     private final EnergyScorePanel energyScorePanel = new EnergyScorePanel(PREDEFINED_ENERGY_SCORINGS.get(0));
     private final TitledBorder energyScorePanelBorder = BorderFactory.createTitledBorder("Energy Scores");
+    private final JLabel energyScoresStrategyLabel = new JLabel("Energy scoring strategy: ");
 
     private final JComboBox<EnergyScoringStrategy> energyScoringStrategyJComboBox = new JComboBox<>(
             new DefaultComboBoxModel(PREDEFINED_ENERGY_SCORINGS.toArray())
@@ -85,6 +115,7 @@ public class App extends JFrame {
     private final JMenuItem saveMenuItem = new JMenuItem("Save");
 
     private final JFileChooser rnaSequenceFileChooser = new JFileChooser();
+    private final JFileChooser secondaryStructureFileChooser = new JFileChooser();
 
     private final VARNAPanel varnaPanel = new VARNAPanel();
 
@@ -118,7 +149,7 @@ public class App extends JFrame {
         return loadSystemLookAndFeel();
     }
 
-    Try<Void> loadLookAndFeelTheme(@NonNull final String lookAndFeelTheme) {
+    private Try<Void> loadLookAndFeelTheme(@NonNull final String lookAndFeelTheme) {
         return Try.run(() -> UIManager.setLookAndFeel(
                 Stream.of(UIManager.getInstalledLookAndFeels())
                         .filter(lookAndFeelInfo -> lookAndFeelInfo.getName().equals(lookAndFeelTheme))
@@ -128,7 +159,7 @@ public class App extends JFrame {
         ));
     }
 
-    Try<Void> loadSystemLookAndFeel() {
+    private Try<Void> loadSystemLookAndFeel() {
         return Try.run(() -> UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()));
     }
 
@@ -136,10 +167,22 @@ public class App extends JFrame {
 
         menuBar = buildMenuBar();
 
-        nussinovTabbedPane = buildNussinovTabbedPanel();
-
+        rightPanel = buildRightPanel();
 
         leftPanel = buildLeftPanel();
+
+        framePanel.add(leftPanel, "dock west");
+        framePanel.add(rightPanel, "dock center");
+
+        this.setJMenuBar(menuBar);
+        this.getContentPane().add(framePanel);
+    }
+
+    private JPanel buildLeftPanel() {
+        final JPanel leftPanel = new JPanel();
+
+        leftPanel.setLayout(new MigLayout());
+
 
         rnaSequenceTextArea.setLineWrap(true);
         // for debugging
@@ -153,28 +196,16 @@ public class App extends JFrame {
         rnaSequenceClearButton.addActionListener(clearButtonActionListener);
         saveRnaImageButton.addActionListener(saveVisulatizationToFileListner);
 
-        nussinovMatrixPanel.setAutoscrolls(true);
-
-
-        framePanel.add(leftPanel, "dock west");
-        framePanel.add(nussinovTabbedPane, "dock center");
-
-        this.setJMenuBar(menuBar);
-        this.getContentPane().add(framePanel);
-    }
-
-    private JPanel buildLeftPanel() {
-        final JPanel leftPanel = new JPanel();
-
-        leftPanel.setLayout(new MigLayout());
-
         leftPanel.add(rnaSequenceAreaPanel, "wrap, push, grow");
+
+        energyScoresStrategyLabel.setLabelFor(energyScoringStrategyJComboBox);
 
         energyScoringStrategyJComboBox.setRenderer(energyScoresComboBoxRenderer);
         energyScoringStrategyJComboBox.addActionListener(energyScoresComboBoxListener);
 
         energyScorePanel.setBorder(energyScorePanelBorder);
 
+        leftPanel.add(energyScoresStrategyLabel, "split");
         leftPanel.add(energyScoringStrategyJComboBox, "wrap");
 
         leftPanel.add(energyScorePanel, "wrap, push, grow");
@@ -187,55 +218,68 @@ public class App extends JFrame {
         return leftPanel;
     }
 
-    private final ListCellRenderer energyScoresComboBoxRenderer = new DefaultListCellRenderer() {
-
-        @Override
-        public Component getListCellRendererComponent(final JList<?> list, final Object value,
-                                                      final int index, final boolean isSelected,
-                                                      final boolean cellHasFocus) {
-
-            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-
-            Match.of(value)
-                    .whenType(EnergyScoringStrategy.class)
-                        .thenRun(energyScoringStrategy -> setText(energyScoringStrategy.getStrategyName()));
-
-            return this;
-        }
-    };
-
-    private final ActionListener energyScoresComboBoxListener = (actionEvent) ->
-        Match.of(actionEvent.getSource())
-                .whenType(JComboBox.class)
-                    .then(comboBoxSource ->
-                            Match.of(comboBoxSource.getSelectedItem())
-                                    .whenType(EnergyScoringStrategy.class)
-                                        .thenRun(energyScoringStrategy -> {
-                                            log.log(Level.INFO, String.format("Loading selected Scoring Strategy: %s", energyScoringStrategy.getStrategyName()));
-                                            energyScorePanel.loadEnergyScores(energyScoringStrategy);
-                                        })
-                    );
-
 
     private JPanel buildPredictedSecondaryStructurePanel() {
         final JPanel nussinovPredictedStructurePanel = new JPanel();
 
-        nussinovPredictedStructurePanel.setLayout(new MigLayout());
+        nussinovPredictedStructurePanel.setLayout(new MigLayout("fill"));
 
-        viennaLabel.setLabelFor(viennaFormatLabel);
+        viennaLabel.setLabelFor(viennaFormatTextField);
+        viennaFormatTextField.setEditable(false);
+        viennaFormatScrollBar.setModel(viennaFormatBoundedRangeModel);
 
-        nussinovPredictedStructurePanel.add(viennaLabel);
-        nussinovPredictedStructurePanel.add(viennaFormatLabel);
+        viennaExportButton.addActionListener(exportAsViennaFormatActionListener);
+        viennaExportButton.setEnabled(false);
+
+        viennaPanel.add(viennaLabel);
+        viennaPanel.add(viennaExportButton, "wrap");
+        viennaPanel.add(viennaFormatTextField, "span, pushx, grow, wrap");
+        viennaPanel.add(viennaFormatScrollBar, "span, pushx, grow");
+
+        nussinovPredictedStructurePanel.add(viennaPanel, "span, grow, pushx, wrap");
+
+        bpseqExportButton.addActionListener(exportAsBpseqFormatActionListener);
+        bpseqExportButton.setEnabled(false);
+
+        bpseqLabel.setLabelFor(bpseqFormatTextArea);
+        bpseqFormatTextArea.setEditable(false);
+        bpseqPanel.add(bpseqLabel);
+        bpseqPanel.add(bpseqExportButton, "wrap");
+        bpseqPanel.add(new JScrollPane(bpseqFormatTextArea));
+
+        nussinovPredictedStructurePanel.add(bpseqPanel, "grow");
+
+        ctExportButton.addActionListener(exportAsCtFormatActionListener);
+        ctExportButton.setEnabled(false);
+
+        ctLabel.setLabelFor(ctFormatTextArea);
+        ctFormatTextArea.setEditable(false);
+        ctPanel.add(ctLabel);
+        ctPanel.add(ctExportButton, "wrap");
+        ctPanel.add(new JScrollPane(ctFormatTextArea));
+
+        nussinovPredictedStructurePanel.add(ctPanel, "grow");
 
         return nussinovPredictedStructurePanel;
     }
 
-    private JTabbedPane buildNussinovTabbedPanel() {
+    private JTabbedPane buildRightPanel() {
         final JTabbedPane nussinovTabbedPane = new JTabbedPane();
 
-        nussinovTabbedPane.add("Drawing", varnaPanel);
+        nussinovMatrixPanel.setAutoscrolls(true);
+        nussinovMatrixPanel.setLayout(new MigLayout("fill"));
+
+        setZoomLevelButton.addActionListener(setZoomLevelActionListener);
+
+        zoomLevelPanel.add(setZoomLevelTextField);
+        zoomLevelPanel.add(setZoomLevelButton);
+
+        nussinovMatrixTopPanel.add(nussinovMatrixScrollPane, BorderLayout.CENTER);
+        nussinovMatrixTopPanel.add(zoomLevelPanel, BorderLayout.SOUTH);
+
         nussinovTabbedPane.addTab("RNA Secondary Structure", buildPredictedSecondaryStructurePanel());
-        nussinovTabbedPane.addTab("Nussinov Matrix", nussinovMatrixScrollPane);
+        nussinovTabbedPane.addTab("Nussinov Matrix", nussinovMatrixTopPanel);
+        nussinovTabbedPane.addTab("Visualization (powered by VARNA)", varnaPanel);
 
         return nussinovTabbedPane;
     }
@@ -300,9 +344,39 @@ public class App extends JFrame {
 
     };
 
+    private final ListCellRenderer energyScoresComboBoxRenderer = new DefaultListCellRenderer() {
+
+        @Override
+        public Component getListCellRendererComponent(final JList<?> list, final Object value,
+                                                      final int index, final boolean isSelected,
+                                                      final boolean cellHasFocus) {
+
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+            Match.of(value)
+                    .whenType(EnergyScoringStrategy.class)
+                    .thenRun(energyScoringStrategy -> setText(energyScoringStrategy.getStrategyName()));
+
+            return this;
+        }
+    };
+
+    private final ActionListener energyScoresComboBoxListener = (actionEvent) ->
+            Match.of(actionEvent.getSource())
+                    .whenType(JComboBox.class)
+                    .then(comboBoxSource ->
+                            Match.of(comboBoxSource.getSelectedItem())
+                                    .whenType(EnergyScoringStrategy.class)
+                                    .thenRun(energyScoringStrategy -> {
+                                        log.log(Level.INFO, String.format("Loading selected Scoring Strategy: %s", energyScoringStrategy.getStrategyName()));
+                                        energyScorePanel.loadEnergyScores(energyScoringStrategy);
+                                    })
+                    );
+
     private ActionListener calculateButtonActionListener = actionEvent -> {
         Try.of (() ->
                 Optional.ofNullable(rnaSequenceTextArea.getText())
+                    .map(StringUtils::trim)
                     .map(RnaSequence::of)
                     .map(rnaSequence -> new NussinovAlgorithm(rnaSequence, energyScorePanel.getCurrentEnergyScores()))
                     .map(NussinovAlgorithm::getRnaSecondaryStruct)
@@ -316,7 +390,14 @@ public class App extends JFrame {
             final String viennaFormat = ViennaConverter.toViennaFormat(predictedSecondaryStructure);
 
             nussinovMatrixPanel.setRnaSecondaryStruct(predictedSecondaryStructure);
-            viennaFormatLabel.setText(viennaFormat);
+            viennaFormatTextField.setText(viennaFormat);
+            bpseqFormatTextArea.setText(BpseqConverter.toBpseqFormat(predictedSecondaryStructure));
+            ctFormatTextArea.setText(CtConverter.toCtFormat(predictedSecondaryStructure));
+
+            viennaExportButton.setEnabled(true);
+            ctExportButton.setEnabled(true);
+            bpseqExportButton.setEnabled(true);
+
             Try.run(() -> {
                 varnaPanel.drawRNA(
                         predictedSecondaryStructure.getRnaSequence().getAsString(),
@@ -328,8 +409,16 @@ public class App extends JFrame {
 
     private ActionListener clearButtonActionListener = actionEvent -> {
         rnaSequenceTextArea.setText("");
-        viennaFormatLabel.setText("");
+        viennaFormatTextField.setText("");
+        bpseqFormatTextArea.setText("");
+        ctFormatTextArea.setText("");
         nussinovMatrixPanel.setRnaSecondaryStruct(null);
+
+
+        viennaExportButton.setEnabled(false);
+        ctExportButton.setEnabled(false);
+        bpseqExportButton.setEnabled(false);
+        repaint();
     };
 
     private ActionListener exitMenuItemActionListener = actionEvent -> {
@@ -357,7 +446,51 @@ public class App extends JFrame {
         }
     };
 
-    private ActionListener saveMenuItemActionListener = actionEvent -> {
+    private ActionListener saveMenuItemActionListener = actionEvent ->
         JOptionPane.showMessageDialog(this, "Not implemented!", "Not implemented", JOptionPane.INFORMATION_MESSAGE);
-    };
+
+    private ActionListener setZoomLevelActionListener = actionEvent ->
+        Optional.ofNullable(setZoomLevelTextField.getText())
+                .ifPresent(zoomLevel -> {
+                    nussinovMatrixPanel.setZoomLevel(Integer.parseInt(zoomLevel));
+                });
+
+
+    private ActionListener exportAsViennaFormatActionListener = actionEvent ->
+        Optional.ofNullable(viennaFormatTextField.getText()).ifPresent(viennaFormat ->
+            saveTextWithFileChooser(viennaFormat)
+                    .onFailure(e ->
+                            JOptionPane.showMessageDialog(this, e.getMessage(), "Error exporting Vienna format", JOptionPane.ERROR_MESSAGE)
+                    )
+        );
+
+    private ActionListener exportAsBpseqFormatActionListener = actionEvent ->
+            Optional.ofNullable(bpseqFormatTextArea.getText()).ifPresent(bpseqFormat ->
+                    saveTextWithFileChooser(bpseqFormat)
+                            .onFailure(e ->
+                                    JOptionPane.showMessageDialog(this, e.getMessage(), "Error exporting BPSEQ format", JOptionPane.ERROR_MESSAGE)
+                            )
+            );
+
+
+    private ActionListener exportAsCtFormatActionListener = actionEvent ->
+            Optional.ofNullable(ctFormatTextArea.getText()).ifPresent(ctFormat ->
+                    saveTextWithFileChooser(ctFormat)
+                            .onFailure(e ->
+                                    JOptionPane.showMessageDialog(this, e.getMessage(), "Error exporting CT format", JOptionPane.ERROR_MESSAGE)
+                            )
+            );
+
+    private Try<Void> saveTextWithFileChooser(@NonNull final String text) {
+        final JFileChooser jFileChooser = new JFileChooser();
+        final int fileChooserDialogReturnValue = jFileChooser.showSaveDialog(this);
+
+        if(fileChooserDialogReturnValue == JFileChooser.APPROVE_OPTION && jFileChooser.getSelectedFile() != null) {
+            return Try.run(() -> Files.write(jFileChooser.getSelectedFile().toPath(), text.getBytes()));
+        }
+
+        return Try.success(null);
+    }
+
+
 }
