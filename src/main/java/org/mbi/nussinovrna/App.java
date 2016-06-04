@@ -239,17 +239,6 @@ public class App extends JFrame {
 
         nussinovPredictedStructurePanel.add(viennaPanel, "span, grow, pushx, wrap");
 
-        bpseqExportButton.addActionListener(exportAsBpseqFormatActionListener);
-        bpseqExportButton.setEnabled(false);
-
-        bpseqLabel.setLabelFor(bpseqFormatTextArea);
-        bpseqFormatTextArea.setEditable(false);
-        bpseqPanel.add(bpseqLabel);
-        bpseqPanel.add(bpseqExportButton, "wrap");
-        bpseqPanel.add(new JScrollPane(bpseqFormatTextArea));
-
-        nussinovPredictedStructurePanel.add(bpseqPanel, "grow");
-
         ctExportButton.addActionListener(exportAsCtFormatActionListener);
         ctExportButton.setEnabled(false);
 
@@ -257,9 +246,20 @@ public class App extends JFrame {
         ctFormatTextArea.setEditable(false);
         ctPanel.add(ctLabel);
         ctPanel.add(ctExportButton, "wrap");
-        ctPanel.add(new JScrollPane(ctFormatTextArea));
+        ctPanel.add(new JScrollPane(ctFormatTextArea), "span, push, grow");
 
         nussinovPredictedStructurePanel.add(ctPanel, "grow");
+
+        bpseqExportButton.addActionListener(exportAsBpseqFormatActionListener);
+        bpseqExportButton.setEnabled(false);
+
+        bpseqLabel.setLabelFor(bpseqFormatTextArea);
+        bpseqFormatTextArea.setEditable(false);
+        bpseqPanel.add(bpseqLabel);
+        bpseqPanel.add(bpseqExportButton, "wrap");
+        bpseqPanel.add(new JScrollPane(bpseqFormatTextArea), "span, push, grow");
+
+        nussinovPredictedStructurePanel.add(bpseqPanel, "grow");
 
         return nussinovPredictedStructurePanel;
     }
