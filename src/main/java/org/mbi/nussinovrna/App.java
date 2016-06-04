@@ -8,7 +8,6 @@ import javaslang.control.Match;
 import javaslang.control.Try;
 import lombok.NonNull;
 import lombok.extern.java.Log;
-import net.miginfocom.layout.CC;
 import net.miginfocom.swing.MigLayout;
 import org.apache.commons.lang3.StringUtils;
 import org.mbi.nussinovrna.algorithm.NussinovAlgorithm;
@@ -116,6 +115,7 @@ public class App extends JFrame {
     private final JMenuItem saveMenuItem = new JMenuItem("Save");
 
     private final JFileChooser rnaSequenceFileChooser = new JFileChooser();
+    private final JFileChooser secondaryStructureFileChooser = new JFileChooser();
 
     private final VARNAPanel varnaPanel = new VARNAPanel();
 
@@ -228,12 +228,18 @@ public class App extends JFrame {
         viennaFormatTextField.setEditable(false);
         viennaFormatScrollBar.setModel(viennaFormatBoundedRangeModel);
 
+        viennaExportButton.addActionListener(exportAsViennaFormatActionListener);
+        viennaExportButton.setEnabled(false);
+
         viennaPanel.add(viennaLabel);
         viennaPanel.add(viennaExportButton, "wrap");
         viennaPanel.add(viennaFormatTextField, "span, pushx, grow, wrap");
         viennaPanel.add(viennaFormatScrollBar, "span, pushx, grow");
 
         nussinovPredictedStructurePanel.add(viennaPanel, "span, grow, pushx, wrap");
+
+        bpseqExportButton.addActionListener(exportAsBpseqFormatActionListener);
+        bpseqExportButton.setEnabled(false);
 
         bpseqLabel.setLabelFor(bpseqFormatTextArea);
         bpseqFormatTextArea.setEditable(false);
@@ -242,6 +248,9 @@ public class App extends JFrame {
         bpseqPanel.add(new JScrollPane(bpseqFormatTextArea));
 
         nussinovPredictedStructurePanel.add(bpseqPanel, "grow");
+
+        ctExportButton.addActionListener(exportAsCtFormatActionListener);
+        ctExportButton.setEnabled(false);
 
         ctLabel.setLabelFor(ctFormatTextArea);
         ctFormatTextArea.setEditable(false);
@@ -385,6 +394,10 @@ public class App extends JFrame {
             bpseqFormatTextArea.setText(BpseqConverter.toBpseqFormat(predictedSecondaryStructure));
             ctFormatTextArea.setText(CtConverter.toCtFormat(predictedSecondaryStructure));
 
+            viennaExportButton.setEnabled(true);
+            ctExportButton.setEnabled(true);
+            bpseqExportButton.setEnabled(true);
+
             Try.run(() -> {
                 varnaPanel.drawRNA(
                         predictedSecondaryStructure.getRnaSequence().getAsString(),
@@ -400,6 +413,11 @@ public class App extends JFrame {
         bpseqFormatTextArea.setText("");
         ctFormatTextArea.setText("");
         nussinovMatrixPanel.setRnaSecondaryStruct(null);
+
+
+        viennaExportButton.setEnabled(false);
+        ctExportButton.setEnabled(false);
+        bpseqExportButton.setEnabled(false);
         repaint();
     };
 
@@ -428,14 +446,51 @@ public class App extends JFrame {
         }
     };
 
-    private ActionListener saveMenuItemActionListener = actionEvent -> {
+    private ActionListener saveMenuItemActionListener = actionEvent ->
         JOptionPane.showMessageDialog(this, "Not implemented!", "Not implemented", JOptionPane.INFORMATION_MESSAGE);
-    };
 
-    private ActionListener setZoomLevelActionListener = actionEvent -> {
+    private ActionListener setZoomLevelActionListener = actionEvent ->
         Optional.ofNullable(setZoomLevelTextField.getText())
                 .ifPresent(zoomLevel -> {
                     nussinovMatrixPanel.setZoomLevel(Integer.parseInt(zoomLevel));
                 });
-    };
+
+
+    private ActionListener exportAsViennaFormatActionListener = actionEvent ->
+        Optional.ofNullable(viennaFormatTextField.getText()).ifPresent(viennaFormat ->
+            saveTextWithFileChooser(viennaFormat)
+                    .onFailure(e ->
+                            JOptionPane.showMessageDialog(this, e.getMessage(), "Error exporting Vienna format", JOptionPane.ERROR_MESSAGE)
+                    )
+        );
+
+    private ActionListener exportAsBpseqFormatActionListener = actionEvent ->
+            Optional.ofNullable(bpseqFormatTextArea.getText()).ifPresent(bpseqFormat ->
+                    saveTextWithFileChooser(bpseqFormat)
+                            .onFailure(e ->
+                                    JOptionPane.showMessageDialog(this, e.getMessage(), "Error exporting BPSEQ format", JOptionPane.ERROR_MESSAGE)
+                            )
+            );
+
+
+    private ActionListener exportAsCtFormatActionListener = actionEvent ->
+            Optional.ofNullable(ctFormatTextArea.getText()).ifPresent(ctFormat ->
+                    saveTextWithFileChooser(ctFormat)
+                            .onFailure(e ->
+                                    JOptionPane.showMessageDialog(this, e.getMessage(), "Error exporting CT format", JOptionPane.ERROR_MESSAGE)
+                            )
+            );
+
+    private Try<Void> saveTextWithFileChooser(@NonNull final String text) {
+        final JFileChooser jFileChooser = new JFileChooser();
+        final int fileChooserDialogReturnValue = jFileChooser.showSaveDialog(this);
+
+        if(fileChooserDialogReturnValue == JFileChooser.APPROVE_OPTION && jFileChooser.getSelectedFile() != null) {
+            return Try.run(() -> Files.write(jFileChooser.getSelectedFile().toPath(), text.getBytes()));
+        }
+
+        return Try.success(null);
+    }
+
+
 }
