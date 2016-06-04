@@ -8,9 +8,13 @@ import javaslang.control.Match;
 import javaslang.control.Try;
 import lombok.NonNull;
 import lombok.extern.java.Log;
+import net.miginfocom.layout.CC;
 import net.miginfocom.swing.MigLayout;
 import org.mbi.nussinovrna.algorithm.NussinovAlgorithm;
 import org.mbi.nussinovrna.algorithm.scoring.*;
+import org.mbi.nussinovrna.converters.BpseqConverter;
+import org.mbi.nussinovrna.converters.CtConverter;
+import org.mbi.nussinovrna.converters.ViennaConverter;
 import org.mbi.nussinovrna.gui.EnergyScorePanel;
 import org.mbi.nussinovrna.gui.NussinovMatrixGrid;
 import org.mbi.nussinovrna.gui.NussinovMatrixPanel;
@@ -60,8 +64,21 @@ public class App extends JFrame {
 
     private final JButton saveRnaImageButton = new JButton("Save to file");
 
+    /* Secondary Structure Formats */
     private final JLabel viennaLabel = new JLabel("Vienna format: ");
     private final JLabel viennaFormatLabel = new JLabel();
+    private final JButton viennaExportButton = new JButton("Export to file");
+    private final JPanel viennaPanel = new JPanel(new MigLayout());
+
+    private final JLabel bpseqLabel = new JLabel("BPSEQ format: ");
+    private final JTextArea bpseqFormatTextArea = new JTextArea(20, 8);
+    private final JButton bpseqExportButton = new JButton("Export to file");
+    private final JPanel bpseqPanel = new JPanel(new MigLayout());
+
+    private final JLabel ctLabel = new JLabel("CT Format: ");
+    private final JTextArea ctFormatTextArea = new JTextArea(20, 15);
+    private final JButton ctExportButton = new JButton("Export to file");
+    private final JPanel ctPanel = new JPanel(new MigLayout());
 
     private JTabbedPane rightPanel;
 
@@ -201,12 +218,31 @@ public class App extends JFrame {
     private JPanel buildPredictedSecondaryStructurePanel() {
         final JPanel nussinovPredictedStructurePanel = new JPanel();
 
-        nussinovPredictedStructurePanel.setLayout(new MigLayout());
+        nussinovPredictedStructurePanel.setLayout(new MigLayout("fill"));
 
         viennaLabel.setLabelFor(viennaFormatLabel);
 
-        nussinovPredictedStructurePanel.add(viennaLabel);
-        nussinovPredictedStructurePanel.add(viennaFormatLabel);
+        viennaPanel.add(viennaLabel);
+        viennaPanel.add(viennaFormatLabel);
+        viennaPanel.add(viennaExportButton, "wrap");
+
+        nussinovPredictedStructurePanel.add(viennaPanel, "span, grow, pushx, wrap");
+
+        bpseqLabel.setLabelFor(bpseqFormatTextArea);
+        bpseqFormatTextArea.setEditable(false);
+        bpseqPanel.add(bpseqLabel);
+        bpseqPanel.add(bpseqExportButton, "wrap");
+        bpseqPanel.add(new JScrollPane(bpseqFormatTextArea));
+
+        nussinovPredictedStructurePanel.add(bpseqPanel, "grow");
+
+        ctLabel.setLabelFor(ctFormatTextArea);
+        ctFormatTextArea.setEditable(false);
+        ctPanel.add(ctLabel);
+        ctPanel.add(ctExportButton, "wrap");
+        ctPanel.add(new JScrollPane(ctFormatTextArea));
+
+        nussinovPredictedStructurePanel.add(ctPanel, "grow");
 
         return nussinovPredictedStructurePanel;
     }
@@ -338,6 +374,9 @@ public class App extends JFrame {
 
             nussinovMatrixPanel.setRnaSecondaryStruct(predictedSecondaryStructure);
             viennaFormatLabel.setText(viennaFormat);
+            bpseqFormatTextArea.setText(BpseqConverter.toBpseqFormat(predictedSecondaryStructure));
+            ctFormatTextArea.setText(CtConverter.toCtFormat(predictedSecondaryStructure));
+
             Try.run(() -> {
                 varnaPanel.drawRNA(
                         predictedSecondaryStructure.getRnaSequence().getAsString(),
@@ -350,7 +389,10 @@ public class App extends JFrame {
     private ActionListener clearButtonActionListener = actionEvent -> {
         rnaSequenceTextArea.setText("");
         viennaFormatLabel.setText("");
+        bpseqFormatTextArea.setText("");
+        ctFormatTextArea.setText("");
         nussinovMatrixPanel.setRnaSecondaryStruct(null);
+        repaint();
     };
 
     private ActionListener exitMenuItemActionListener = actionEvent -> {
