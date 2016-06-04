@@ -63,14 +63,24 @@ public class App extends JFrame {
     private final JLabel viennaLabel = new JLabel("Vienna format: ");
     private final JLabel viennaFormatLabel = new JLabel();
 
-    private JTabbedPane nussinovTabbedPane;
+    private JTabbedPane rightPanel;
 
 
-    private final NussinovMatrixPanel nussinovMatrixPanel = new NussinovMatrixPanel(new NussinovMatrixGrid());
+    private final NussinovMatrixGrid nussinovMatrixGrid = new NussinovMatrixGrid();
+    private final NussinovMatrixPanel nussinovMatrixPanel = new NussinovMatrixPanel(nussinovMatrixGrid);
+
     private final JScrollPane nussinovMatrixScrollPane = new JScrollPane(nussinovMatrixPanel);
+
+    // Zoom
+    private final JPanel zoomLevelPanel = new JPanel(new MigLayout());
+    private final JButton setZoomLevelButton = new JButton("Set zoom");
+    private final JTextField setZoomLevelTextField = new JTextField(10);
+
+    private final JPanel nussinovMatrixTopPanel = new JPanel(new BorderLayout());
 
     private final EnergyScorePanel energyScorePanel = new EnergyScorePanel(PREDEFINED_ENERGY_SCORINGS.get(0));
     private final TitledBorder energyScorePanelBorder = BorderFactory.createTitledBorder("Energy Scores");
+    private final JLabel energyScoresStrategyLabel = new JLabel("Energy scoring strategy: ");
 
     private final JComboBox<EnergyScoringStrategy> energyScoringStrategyJComboBox = new JComboBox<>(
             new DefaultComboBoxModel(PREDEFINED_ENERGY_SCORINGS.toArray())
@@ -118,7 +128,7 @@ public class App extends JFrame {
         return loadSystemLookAndFeel();
     }
 
-    Try<Void> loadLookAndFeelTheme(@NonNull final String lookAndFeelTheme) {
+    private Try<Void> loadLookAndFeelTheme(@NonNull final String lookAndFeelTheme) {
         return Try.run(() -> UIManager.setLookAndFeel(
                 Stream.of(UIManager.getInstalledLookAndFeels())
                         .filter(lookAndFeelInfo -> lookAndFeelInfo.getName().equals(lookAndFeelTheme))
@@ -128,7 +138,7 @@ public class App extends JFrame {
         ));
     }
 
-    Try<Void> loadSystemLookAndFeel() {
+    private Try<Void> loadSystemLookAndFeel() {
         return Try.run(() -> UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()));
     }
 
@@ -136,10 +146,22 @@ public class App extends JFrame {
 
         menuBar = buildMenuBar();
 
-        nussinovTabbedPane = buildNussinovTabbedPanel();
-
+        rightPanel = buildRightPanel();
 
         leftPanel = buildLeftPanel();
+
+        framePanel.add(leftPanel, "dock west");
+        framePanel.add(rightPanel, "dock center");
+
+        this.setJMenuBar(menuBar);
+        this.getContentPane().add(framePanel);
+    }
+
+    private JPanel buildLeftPanel() {
+        final JPanel leftPanel = new JPanel();
+
+        leftPanel.setLayout(new MigLayout());
+
 
         rnaSequenceTextArea.setLineWrap(true);
         // for debugging
@@ -153,28 +175,16 @@ public class App extends JFrame {
         rnaSequenceClearButton.addActionListener(clearButtonActionListener);
         saveRnaImageButton.addActionListener(saveVisulatizationToFileListner);
 
-        nussinovMatrixPanel.setAutoscrolls(true);
-
-
-        framePanel.add(leftPanel, "dock west");
-        framePanel.add(nussinovTabbedPane, "dock center");
-
-        this.setJMenuBar(menuBar);
-        this.getContentPane().add(framePanel);
-    }
-
-    private JPanel buildLeftPanel() {
-        final JPanel leftPanel = new JPanel();
-
-        leftPanel.setLayout(new MigLayout());
-
         leftPanel.add(rnaSequenceAreaPanel, "wrap, push, grow");
+
+        energyScoresStrategyLabel.setLabelFor(energyScoringStrategyJComboBox);
 
         energyScoringStrategyJComboBox.setRenderer(energyScoresComboBoxRenderer);
         energyScoringStrategyJComboBox.addActionListener(energyScoresComboBoxListener);
 
         energyScorePanel.setBorder(energyScorePanelBorder);
 
+        leftPanel.add(energyScoresStrategyLabel, "split");
         leftPanel.add(energyScoringStrategyJComboBox, "wrap");
 
         leftPanel.add(energyScorePanel, "wrap, push, grow");
@@ -186,35 +196,6 @@ public class App extends JFrame {
 
         return leftPanel;
     }
-
-    private final ListCellRenderer energyScoresComboBoxRenderer = new DefaultListCellRenderer() {
-
-        @Override
-        public Component getListCellRendererComponent(final JList<?> list, final Object value,
-                                                      final int index, final boolean isSelected,
-                                                      final boolean cellHasFocus) {
-
-            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-
-            Match.of(value)
-                    .whenType(EnergyScoringStrategy.class)
-                        .thenRun(energyScoringStrategy -> setText(energyScoringStrategy.getStrategyName()));
-
-            return this;
-        }
-    };
-
-    private final ActionListener energyScoresComboBoxListener = (actionEvent) ->
-        Match.of(actionEvent.getSource())
-                .whenType(JComboBox.class)
-                    .then(comboBoxSource ->
-                            Match.of(comboBoxSource.getSelectedItem())
-                                    .whenType(EnergyScoringStrategy.class)
-                                        .thenRun(energyScoringStrategy -> {
-                                            log.log(Level.INFO, String.format("Loading selected Scoring Strategy: %s", energyScoringStrategy.getStrategyName()));
-                                            energyScorePanel.loadEnergyScores(energyScoringStrategy);
-                                        })
-                    );
 
 
     private JPanel buildPredictedSecondaryStructurePanel() {
@@ -230,12 +211,23 @@ public class App extends JFrame {
         return nussinovPredictedStructurePanel;
     }
 
-    private JTabbedPane buildNussinovTabbedPanel() {
+    private JTabbedPane buildRightPanel() {
         final JTabbedPane nussinovTabbedPane = new JTabbedPane();
 
-        nussinovTabbedPane.add("Drawing", varnaPanel);
+        nussinovMatrixPanel.setAutoscrolls(true);
+        nussinovMatrixPanel.setLayout(new MigLayout("fill"));
+
+        setZoomLevelButton.addActionListener(setZoomLevelActionListener);
+
+        zoomLevelPanel.add(setZoomLevelTextField);
+        zoomLevelPanel.add(setZoomLevelButton);
+
+        nussinovMatrixTopPanel.add(nussinovMatrixScrollPane, BorderLayout.CENTER);
+        nussinovMatrixTopPanel.add(zoomLevelPanel, BorderLayout.SOUTH);
+
         nussinovTabbedPane.addTab("RNA Secondary Structure", buildPredictedSecondaryStructurePanel());
-        nussinovTabbedPane.addTab("Nussinov Matrix", nussinovMatrixScrollPane);
+        nussinovTabbedPane.addTab("Nussinov Matrix", nussinovMatrixTopPanel);
+        nussinovTabbedPane.addTab("Visualization (powered by VARNA)", varnaPanel);
 
         return nussinovTabbedPane;
     }
@@ -300,6 +292,35 @@ public class App extends JFrame {
 
     };
 
+    private final ListCellRenderer energyScoresComboBoxRenderer = new DefaultListCellRenderer() {
+
+        @Override
+        public Component getListCellRendererComponent(final JList<?> list, final Object value,
+                                                      final int index, final boolean isSelected,
+                                                      final boolean cellHasFocus) {
+
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+            Match.of(value)
+                    .whenType(EnergyScoringStrategy.class)
+                    .thenRun(energyScoringStrategy -> setText(energyScoringStrategy.getStrategyName()));
+
+            return this;
+        }
+    };
+
+    private final ActionListener energyScoresComboBoxListener = (actionEvent) ->
+            Match.of(actionEvent.getSource())
+                    .whenType(JComboBox.class)
+                    .then(comboBoxSource ->
+                            Match.of(comboBoxSource.getSelectedItem())
+                                    .whenType(EnergyScoringStrategy.class)
+                                    .thenRun(energyScoringStrategy -> {
+                                        log.log(Level.INFO, String.format("Loading selected Scoring Strategy: %s", energyScoringStrategy.getStrategyName()));
+                                        energyScorePanel.loadEnergyScores(energyScoringStrategy);
+                                    })
+                    );
+
     private ActionListener calculateButtonActionListener = actionEvent -> {
         Try.of (() ->
                 Optional.ofNullable(rnaSequenceTextArea.getText())
@@ -359,5 +380,12 @@ public class App extends JFrame {
 
     private ActionListener saveMenuItemActionListener = actionEvent -> {
         JOptionPane.showMessageDialog(this, "Not implemented!", "Not implemented", JOptionPane.INFORMATION_MESSAGE);
+    };
+
+    private ActionListener setZoomLevelActionListener = actionEvent -> {
+        Optional.ofNullable(setZoomLevelTextField.getText())
+                .ifPresent(zoomLevel -> {
+                    nussinovMatrixPanel.setZoomLevel(Integer.parseInt(zoomLevel));
+                });
     };
 }

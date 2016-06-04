@@ -1,5 +1,6 @@
 package org.mbi.nussinovrna.gui;
 
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.mbi.nussinovrna.rna.RnaSecondaryStruct;
 
@@ -13,6 +14,8 @@ import java.util.stream.IntStream;
 public class NussinovMatrixPanel extends JPanel {
 
     private final NussinovMatrixGrid nussinovMatrixGrid;
+
+
 
     @Override
     protected void paintComponent(Graphics g) {
@@ -74,5 +77,15 @@ public class NussinovMatrixPanel extends JPanel {
     public void setRnaSecondaryStruct(final RnaSecondaryStruct rnaSecondaryStruct) {
         nussinovMatrixGrid.setRnaSecondaryStruct(rnaSecondaryStruct);
         repaint();
+    }
+
+    public void setZoomLevel(final int zoomLevel) {
+        nussinovMatrixGrid.setZoomLevel(zoomLevel);
+        repaint();
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        return nussinovMatrixGrid.getPreferredSize();
     }
 }
