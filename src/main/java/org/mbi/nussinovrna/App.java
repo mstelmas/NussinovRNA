@@ -2,6 +2,7 @@ package org.mbi.nussinovrna;
 
 import com.google.common.collect.ImmutableList;
 import fr.orsay.lri.varna.VARNAPanel;
+import fr.orsay.lri.varna.applications.FileNameExtensionFilter;
 import fr.orsay.lri.varna.models.export.SwingGraphics;
 import fr.orsay.lri.varna.models.export.VueVARNAGraphics;
 import javaslang.control.Match;
@@ -57,6 +58,7 @@ public class App extends JFrame {
                     .build();
 
     private final JPanel framePanel = new JPanel(new MigLayout("fill"));
+
     private final JPanel rnaSequenceAreaPanel = new JPanel();
     private final TitledBorder rnaSequenceAreaPanelBorder = BorderFactory.createTitledBorder("RNA Sequence");
     private final JTextArea rnaSequenceTextArea = new JTextArea(10, 35);
@@ -74,7 +76,6 @@ public class App extends JFrame {
     private final JButton viennaExportButton = new JButton("Export to file");
     private final JPanel viennaPanel = new JPanel(new MigLayout());
 
-
     private final JLabel bpseqLabel = new JLabel("BPSEQ format: ");
     private final JTextArea bpseqFormatTextArea = new JTextArea(20, 8);
     private final JButton bpseqExportButton = new JButton("Export to file");
@@ -91,9 +92,11 @@ public class App extends JFrame {
     private final JScrollPane nussinovMatrixScrollPane = new JScrollPane(nussinovMatrixPanel);
 
     // Zoom
+    private final JLabel zoomLevelLabel = new JLabel("Zoom level: ");
     private final JPanel zoomLevelPanel = new JPanel(new MigLayout());
-    private final JButton setZoomLevelButton = new JButton("Set zoom");
-    private final JTextField setZoomLevelTextField = new JTextField(10);
+    private final JButton setZoomLevelButton = new JButton("Zoom!");
+    private final JTextField setZoomLevelTextField = new JTextField(6);
+    private final JButton saveNussinovMatrixButton = new JButton("Export to file");
 
     private final JPanel nussinovMatrixTopPanel = new JPanel(new BorderLayout());
 
@@ -273,10 +276,14 @@ public class App extends JFrame {
         nussinovMatrixPanel.setAutoscrolls(true);
         nussinovMatrixPanel.setLayout(new MigLayout("fill"));
 
+        zoomLevelLabel.setLabelFor(setZoomLevelTextField);
         setZoomLevelButton.addActionListener(setZoomLevelActionListener);
-
+        saveNussinovMatrixButton.addActionListener(saveNussinovMatrixActionListener);
+        setZoomLevelTextField.setHorizontalAlignment(JTextField.CENTER);
+        zoomLevelPanel.add(zoomLevelLabel);
         zoomLevelPanel.add(setZoomLevelTextField);
         zoomLevelPanel.add(setZoomLevelButton);
+        zoomLevelPanel.add(saveNussinovMatrixButton);
 
         nussinovMatrixTopPanel.add(nussinovMatrixScrollPane, BorderLayout.CENTER);
         nussinovMatrixTopPanel.add(zoomLevelPanel, BorderLayout.SOUTH);
@@ -309,42 +316,33 @@ public class App extends JFrame {
         return menuBar;
     }
 
-    // tmp
-    private ActionListener saveVisulatizationToFileListner = actionEvent -> {
-        final BufferedImage bufferedImage = new BufferedImage(
-                varnaPanel.getInnerWidth(),
-                varnaPanel.getInnerHeight(),
-                BufferedImage.TYPE_INT_RGB
-        );
+    private ActionListener saveNussinovMatrixActionListener = actionEvent -> {
 
-        final Graphics2D graphics = bufferedImage.createGraphics();
+        final JFileChooser jFileChooser = new JFileChooser();
+        jFileChooser.setFileFilter(new FileNameExtensionFilter("Image Files", "png"));
+        final int saveActionResult = jFileChooser.showSaveDialog(this);
 
 
-        final VueVARNAGraphics vueVARNAGraphics = new SwingGraphics(graphics);
-
-        final Color currentColor = vueVARNAGraphics.getColor();
-
-        vueVARNAGraphics.setColor(Color.WHITE);
-
-        vueVARNAGraphics.fillRect(0, 0, bufferedImage.getWidth(), bufferedImage.getHeight());
-
-        vueVARNAGraphics.setColor(currentColor);
+        if(saveActionResult == JFileChooser.APPROVE_OPTION && jFileChooser.getSelectedFile() != null) {
+            final Dimension areaSize = nussinovMatrixGrid.getAreaSize();
 
 
-        final Rectangle2D.Double rectange = new Rectangle2D.Double(
-                0, 0, bufferedImage.getWidth(), bufferedImage.getHeight()
-        );
+            final BufferedImage bufferedImage = new BufferedImage(
+                    areaSize.width,
+                    areaSize.height,
+                    BufferedImage.TYPE_INT_RGB
+            );
 
-        varnaPanel.renderRNA(vueVARNAGraphics, rectange, true, true);
+            final Graphics2D graphics = bufferedImage.createGraphics();
 
-        graphics.dispose();
+            nussinovMatrixGrid.paintComponent(graphics);
 
-        final File f = new File("savedImage.png");
+            graphics.dispose();
 
-        Try.run(() -> ImageIO.write(bufferedImage, "png", f))
-                .onFailure((e) -> JOptionPane.showMessageDialog(this, e.getMessage(), "Could not save RNA image", JOptionPane.ERROR_MESSAGE));
-
-
+            Try.run(() -> ImageIO.write(bufferedImage, "png", jFileChooser.getSelectedFile()))
+                    .onFailure((e) -> JOptionPane.showMessageDialog(this, e.getMessage(), "Could not save RNA image", JOptionPane.ERROR_MESSAGE))
+                    .onSuccess((e) -> JOptionPane.showMessageDialog(this, "Successfully exported Nussinov matrix to image file", "Success!", JOptionPane.INFORMATION_MESSAGE));
+        }
     };
 
     private final ListCellRenderer energyScoresComboBoxRenderer = new DefaultListCellRenderer() {
@@ -400,9 +398,14 @@ public class App extends JFrame {
             bpseqFormatTextArea.setText(BpseqConverter.toBpseqFormat(predictedSecondaryStructure));
             ctFormatTextArea.setText(CtConverter.toCtFormat(predictedSecondaryStructure));
 
+            setZoomLevelTextField.setText(Double.toString(nussinovMatrixGrid.getZoomLevel()));
+
             viennaExportButton.setEnabled(true);
             ctExportButton.setEnabled(true);
             bpseqExportButton.setEnabled(true);
+
+            nussinovMatrixScrollPane.invalidate();
+            repaint();
 
             Try.run(() -> {
                 varnaPanel.drawRNA(
@@ -424,6 +427,8 @@ public class App extends JFrame {
         viennaExportButton.setEnabled(false);
         ctExportButton.setEnabled(false);
         bpseqExportButton.setEnabled(false);
+
+        nussinovMatrixScrollPane.invalidate();
         repaint();
     };
 
@@ -463,6 +468,8 @@ public class App extends JFrame {
         Optional.ofNullable(setZoomLevelTextField.getText())
                 .ifPresent(zoomLevel -> {
                     nussinovMatrixPanel.setZoomLevel(Integer.parseInt(zoomLevel));
+                    nussinovMatrixScrollPane.invalidate();
+                    repaint();
                 });
 
 

@@ -1,6 +1,5 @@
 package org.mbi.nussinovrna.algorithm;
 
-import com.google.common.collect.ImmutableMap;
 import lombok.Getter;
 import lombok.NonNull;
 import org.mbi.nussinovrna.UnorderedPair;
@@ -13,8 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
-
-import static org.mbi.nussinovrna.rna.RnaNucleotide.*;
 
 public final class NussinovAlgorithm {
 
