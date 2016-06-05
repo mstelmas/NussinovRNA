@@ -1,6 +1,5 @@
 package org.mbi.nussinovrna.gui;
 
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.mbi.nussinovrna.rna.RnaSecondaryStruct;
 
@@ -37,25 +36,26 @@ public class NussinovMatrixPanel extends JPanel {
                 g.drawLine(currentCellSize, 0, currentCellSize, areaSize.width + currentCellSize);
 
 
-                final FontMetrics fontMetrics = getFontMetrics(getFont());
+                final FontMetrics fontMetrics = getFontMetrics(nussinovMatrixGrid.getCurrentFont());
 
-                g.setFont(getFont());
+                g.setFont(nussinovMatrixGrid.getCurrentFont());
                 g.setColor(NussinovMatrixGridConst.MATRIX_VALUE_COLOR);
 
                 IntStream.range(0, currentCellCount).forEach(cell -> {
                     final String cellValue = String.valueOf(rnaSecondaryStruct.getRnaSequence().getAsString().charAt(cell));
                     final int adjustedFontWidth = fontMetrics.stringWidth(cellValue);
+                    final int adjustedFontHeight = fontMetrics.getAscent();
 
                     g.drawString(
                             cellValue,
                             (cell + 1) * currentCellSize + currentCellSize / 2 - (adjustedFontWidth / 2),
-                            2 * fontMetrics.getAscent()
+                            adjustedFontHeight * 3 / 2
                     );
 
                     g.drawString(
                             cellValue,
-                            fontMetrics.getAscent(),
-                            (cell + 1) * currentCellSize + currentCellSize / 2
+                            adjustedFontWidth,
+                            (cell + 1) * currentCellSize + adjustedFontHeight * 3 / 2
                     );
                 });
 
