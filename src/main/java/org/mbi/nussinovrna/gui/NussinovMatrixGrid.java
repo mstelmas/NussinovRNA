@@ -21,7 +21,7 @@ public final class NussinovMatrixGrid extends JComponent {
     @Getter private double zoomLevel = DEFAULT_ZOOM_LEVEL / 100;
     @Getter private Font currentFont = DEFAULT_FONT;
 
-    protected NussinovMatrixCell nussinovMatrixCells[][];
+    private NussinovMatrixCell nussinovMatrixCells[][];
 
     @Getter private int nussinovMatrixSize;
 
@@ -104,24 +104,17 @@ public final class NussinovMatrixGrid extends JComponent {
             g.drawLine(0, i * cellSize, areaSize.width, i * cellSize);
         });
 
-        drawValues(g);
-
         /* fill unimportant cells in Nussinov matrix */
         if(nussinovMatrixSize >= 2) {
 
-            g.setColor(NussinovMatrixGridConst.MATRIX_CELL_UNUSED);
-
-            IntStream.range(2, nussinovMatrixSize).forEach(row -> {
-                IntStream.range(0, (row - 1)).forEach(col -> {
-                    g.fillRect(
-                            col * cellSize + 1,
-                            row * cellSize + 1,
-                            cellSize - 1,
-                            cellSize - 1
-                    );
-                });
-            });
+            IntStream.range(2, nussinovMatrixSize).forEach(row ->
+                IntStream.range(0, (row - 1)).forEach(col ->
+                    colorCellAt(g, col, row, NussinovMatrixGridConst.MATRIX_CELL_UNUSED)
+                )
+            );
         }
+
+        drawValues(g);
     }
 
     protected void drawValues(final Graphics g) {
@@ -133,20 +126,34 @@ public final class NussinovMatrixGrid extends JComponent {
         g.setFont(currentFont);
         g.setColor(NussinovMatrixGridConst.MATRIX_VALUE_COLOR);
 
-        IntStream.range(0, nussinovMatrixSize).forEach(row -> {
-            IntStream.range(0, nussinovMatrixSize).forEach(col -> {
-                Optional.ofNullable(nussinovMatrixCells[col][row].getValue())
+        rnaSecondaryStruct.getSecondaryStructMap().entrySet().stream().forEach(entrySet -> {
+            colorCellAt(g, entrySet.getValue(), entrySet.getKey(), NussinovMatrixGridConst.MATRIX_CELL_PAIRED);
+        });
+
+        IntStream.range(0, nussinovMatrixSize).forEach(row ->
+            IntStream.range(0, nussinovMatrixSize).forEach(col ->
+                Optional.ofNullable(nussinovMatrixCells[row][col].getValue())
                         .ifPresent(cellValue -> {
                             final int adjustedFontWidth = fontMetrics.stringWidth(cellValue);
 
                             g.drawString(
                                     cellValue,
-                                    row * cellSize + cellSize / 2 - (adjustedFontWidth / 2),
-                                    col * cellSize + cellSize / 2 + adjustedFontHeight
+                                    col * cellSize + cellSize / 2 - (adjustedFontWidth / 2),
+                                    row * cellSize + cellSize / 2 + adjustedFontHeight
                             );
-                        });
-            });
-        });
+                        })
+            )
+        );
+    }
+
+    private void colorCellAt(final Graphics g, final int row, final int column, final Color cellColor) {
+        final Color currentColor = g.getColor();
+
+        g.setColor(cellColor);
+
+        g.fillRect(row * cellSize + 1, column * cellSize + 1, cellSize, cellSize);
+
+        g.setColor(currentColor);
     }
 
     public void setZoomLevel(final int zoomLevel) {

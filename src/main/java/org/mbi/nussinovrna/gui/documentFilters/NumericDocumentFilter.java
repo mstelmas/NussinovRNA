@@ -1,4 +1,4 @@
-package org.mbi.nussinovrna;
+package org.mbi.nussinovrna.gui.documentFilters;
 
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;

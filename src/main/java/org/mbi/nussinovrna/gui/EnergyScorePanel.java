@@ -5,7 +5,7 @@ import lombok.NonNull;
 import lombok.extern.java.Log;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
-import org.mbi.nussinovrna.NumericDocumentFilter;
+import org.mbi.nussinovrna.gui.documentFilters.NumericDocumentFilter;
 import org.mbi.nussinovrna.UnorderedPair;
 import org.mbi.nussinovrna.algorithm.scoring.EnergyScoringStrategy;
 import org.mbi.nussinovrna.rna.RnaNucleotide;

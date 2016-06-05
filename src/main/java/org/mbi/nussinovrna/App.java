@@ -10,6 +10,7 @@ import lombok.NonNull;
 import lombok.extern.java.Log;
 import net.miginfocom.swing.MigLayout;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.mbi.nussinovrna.algorithm.NussinovAlgorithm;
 import org.mbi.nussinovrna.algorithm.scoring.*;
 import org.mbi.nussinovrna.converters.BpseqConverter;
@@ -18,13 +19,17 @@ import org.mbi.nussinovrna.converters.ViennaConverter;
 import org.mbi.nussinovrna.gui.EnergyScorePanel;
 import org.mbi.nussinovrna.gui.NussinovMatrixGrid;
 import org.mbi.nussinovrna.gui.NussinovMatrixPanel;
+import org.mbi.nussinovrna.gui.documentFilters.PositiveNumericDocumentFilter;
 import org.mbi.nussinovrna.rna.RnaSequence;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import javax.swing.text.AbstractDocument;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -37,12 +42,8 @@ import java.util.stream.Stream;
 @Log
 public class App extends JFrame {
 
-    private final static String APP_TITLE = "Nussinov Algorithm";
-    private final static Optional<String> PREFERRED_LOOK_AND_FEEL = Optional.of("Nimbus");
-
-    private final JPanel framePanel = new JPanel(new MigLayout("fill"));
-
-    private JPanel leftPanel;
+    private final static String APP_TITLE = "Nussinov Algorithm (Bioinformatics)";
+    private final static String PREFERRED_LOOK_AND_FEEL = "Nimbus";
 
     private static final ImmutableList<EnergyScoringStrategy> PREDEFINED_ENERGY_SCORINGS =
             new ImmutableList.Builder<EnergyScoringStrategy>()
@@ -55,14 +56,15 @@ public class App extends JFrame {
                     .add(new Penalized3ScoringStrategy())
                     .build();
 
+    private final JPanel framePanel = new JPanel(new MigLayout("fill"));
     private final JPanel rnaSequenceAreaPanel = new JPanel();
     private final TitledBorder rnaSequenceAreaPanelBorder = BorderFactory.createTitledBorder("RNA Sequence");
     private final JTextArea rnaSequenceTextArea = new JTextArea(10, 35);
     private final JScrollPane rnaSequenceTextScrollPane = new JScrollPane(rnaSequenceTextArea);
     private final JButton rnaSequenceCalculateButton = new JButton("Calculate");
     private final JButton rnaSequenceClearButton = new JButton("Clear");
-
-    private final JButton saveRnaImageButton = new JButton("Save to file");
+    private final JTextField rnaSequenceMinLoopSizeTextField = new JTextField(3);
+    private final JLabel rnaSequenceMinLoopSizeLabel = new JLabel("Minimum size of a loop: ");
 
     /* Secondary Structure Formats */
     private final JLabel viennaLabel = new JLabel("Vienna format: ");
@@ -83,9 +85,6 @@ public class App extends JFrame {
     private final JButton ctExportButton = new JButton("Export to file");
     private final JPanel ctPanel = new JPanel(new MigLayout());
 
-    private JTabbedPane rightPanel;
-
-
     private final NussinovMatrixGrid nussinovMatrixGrid = new NussinovMatrixGrid();
     private final NussinovMatrixPanel nussinovMatrixPanel = new NussinovMatrixPanel(nussinovMatrixGrid);
 
@@ -102,11 +101,10 @@ public class App extends JFrame {
     private final TitledBorder energyScorePanelBorder = BorderFactory.createTitledBorder("Energy Scores");
     private final JLabel energyScoresStrategyLabel = new JLabel("Energy scoring strategy: ");
 
-    private final JComboBox<EnergyScoringStrategy> energyScoringStrategyJComboBox = new JComboBox<>(
-            new DefaultComboBoxModel(PREDEFINED_ENERGY_SCORINGS.toArray())
+    private final JComboBox<EnergyScoringStrategy> energyScoringStrategyJComboBox = new JComboBox(
+            new DefaultComboBoxModel<>(PREDEFINED_ENERGY_SCORINGS.toArray())
     );
 
-    private JMenuBar menuBar;
 
     private final JMenu fileMenu = new JMenu("File");
     private final JMenu sequenceMenu = new JMenu("Sequence");
@@ -138,16 +136,11 @@ public class App extends JFrame {
     }
 
     private Try<Void> setUpLookAndFeel() {
-
-        if(PREFERRED_LOOK_AND_FEEL.isPresent()) {
-            return loadLookAndFeelTheme(PREFERRED_LOOK_AND_FEEL.get())
+            return loadLookAndFeelTheme(PREFERRED_LOOK_AND_FEEL)
                     .onFailure((e) -> log.warning(
-                            String.format("Could not load theme: %s, loading system default theme...", PREFERRED_LOOK_AND_FEEL.get()))
+                            String.format("Could not load theme: %s, loading system default theme...", PREFERRED_LOOK_AND_FEEL))
                     )
                     .orElse(this::loadSystemLookAndFeel);
-        }
-
-        return loadSystemLookAndFeel();
     }
 
     private Try<Void> loadLookAndFeelTheme(@NonNull final String lookAndFeelTheme) {
@@ -164,13 +157,17 @@ public class App extends JFrame {
         return Try.run(() -> UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()));
     }
 
+    /* The entire GUI is divided into 2 panels:
+       - left : contains data related to the analyzed RNA sequence
+       - right: contains predicted secondary structure related data
+     */
     private void buildGui() {
 
-        menuBar = buildMenuBar();
+        final JMenuBar menuBar = buildMenuBar();
 
-        rightPanel = buildRightPanel();
+        final JTabbedPane rightPanel = buildRightPanel();
 
-        leftPanel = buildLeftPanel();
+        final JPanel leftPanel = buildLeftPanel();
 
         framePanel.add(leftPanel, "dock west");
         framePanel.add(rightPanel, "dock center");
@@ -195,7 +192,6 @@ public class App extends JFrame {
 
         rnaSequenceCalculateButton.addActionListener(calculateButtonActionListener);
         rnaSequenceClearButton.addActionListener(clearButtonActionListener);
-        saveRnaImageButton.addActionListener(saveVisulatizationToFileListner);
 
         leftPanel.add(rnaSequenceAreaPanel, "wrap, push, grow");
 
@@ -214,7 +210,14 @@ public class App extends JFrame {
         leftPanel.add(rnaSequenceClearButton, "split");
         leftPanel.add(rnaSequenceCalculateButton);
 
-        leftPanel.add(saveRnaImageButton);
+        rnaSequenceMinLoopSizeLabel.setLabelFor(rnaSequenceMinLoopSizeTextField);
+        rnaSequenceMinLoopSizeTextField.setText(String.valueOf(NussinovAlgorithm.DEFAULT_MIN_LOOP_SIZE));
+        rnaSequenceMinLoopSizeTextField.setHorizontalAlignment(JTextField.CENTER);
+        ((AbstractDocument)rnaSequenceMinLoopSizeTextField.getDocument()).setDocumentFilter(new PositiveNumericDocumentFilter());
+        rnaSequenceMinLoopSizeTextField.addFocusListener(minLoopSizeTextFieldFocusListener);
+
+        leftPanel.add(rnaSequenceMinLoopSizeLabel);
+        leftPanel.add(rnaSequenceMinLoopSizeTextField);
 
         return leftPanel;
     }
@@ -378,7 +381,10 @@ public class App extends JFrame {
                 Optional.ofNullable(rnaSequenceTextArea.getText())
                     .map(StringUtils::trim)
                     .map(RnaSequence::of)
-                    .map(rnaSequence -> new NussinovAlgorithm(rnaSequence, energyScorePanel.getCurrentEnergyScores()))
+                    .map(rnaSequence -> new NussinovAlgorithm(
+                            rnaSequence, energyScorePanel.getCurrentEnergyScores(), Optional.ofNullable(
+                            Try.of(() -> Integer.valueOf(rnaSequenceMinLoopSizeTextField.getText().trim())).getOrElse(1)))
+                    )
                     .map(NussinovAlgorithm::getRnaSecondaryStruct)
                     .get()
         ).onFailure(e -> {
@@ -496,5 +502,35 @@ public class App extends JFrame {
         return Try.success(null);
     }
 
+    private final FocusListener minLoopSizeTextFieldFocusListener = new FocusListener() {
+
+        private Optional<String> currentMinLoopSizeValue = Optional.empty();
+
+        @Override
+        public void focusGained(final FocusEvent focusEvent) {
+            Match.of(focusEvent.getComponent())
+                    .whenType(JTextField.class)
+                        .thenRun((minLoopSizeTextField -> currentMinLoopSizeValue = Optional.of(minLoopSizeTextField.getText())));
+        }
+
+        @Override
+        public void focusLost(final FocusEvent focusEvent) {
+            if (!focusEvent.isTemporary() && focusEvent.getComponent() instanceof JTextField) {
+
+                final JTextField minLoopSizeTextField = (JTextField) focusEvent.getComponent();
+                final String energyValue = minLoopSizeTextField.getText();
+
+                if(StringUtils.isBlank(energyValue) || !NumberUtils.isNumber(energyValue)) {
+                    if(!currentMinLoopSizeValue.isPresent()) {
+                        log.warning("Cannot restore previous value for energy text field?! Setting to " + PREDEFINED_ENERGY_SCORINGS);
+                        minLoopSizeTextField.setText(String.valueOf(PREDEFINED_ENERGY_SCORINGS));
+                    } else {
+                        minLoopSizeTextField.setText(currentMinLoopSizeValue.get());
+                        currentMinLoopSizeValue = Optional.empty();
+                    }
+                }
+            }
+        }
+    };
 
 }
