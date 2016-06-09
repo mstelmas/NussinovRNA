@@ -1,6 +1,5 @@
 package org.mbi.nussinovrna.algorithm;
 
-import com.google.common.collect.ImmutableMap;
 import lombok.Getter;
 import lombok.NonNull;
 import org.mbi.nussinovrna.UnorderedPair;
@@ -11,15 +10,17 @@ import org.mbi.nussinovrna.rna.RnaSequence;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.IntStream;
 
-import static org.mbi.nussinovrna.rna.RnaNucleotide.*;
-
 public final class NussinovAlgorithm {
+
+    public final static int DEFAULT_MIN_LOOP_SIZE = 1;
 
     private final int[][] nussinovMatrix;
     private final RnaSequence rnaSequence;
     private final int rnaSequenceLength;
+    private final int minLoopSize;
 
     private final Map<Integer, Integer> pairs = new HashMap<>();
     private final Map<UnorderedPair<RnaNucleotide>, Integer> nucleotidePairsMapping;
@@ -27,9 +28,17 @@ public final class NussinovAlgorithm {
     @Getter
     private final RnaSecondaryStruct rnaSecondaryStruct;
 
+
     public NussinovAlgorithm(
             @NonNull final RnaSequence rnaSequence,
-            @NonNull final Map<UnorderedPair<RnaNucleotide>, Integer> energyScoresMap) {
+            @NonNull final Map<UnorderedPair<RnaNucleotide>, Integer> energyScoresMap,
+            final Optional<Integer> minLoopSize) {
+
+        this.minLoopSize = minLoopSize.orElse(DEFAULT_MIN_LOOP_SIZE);
+
+        if(this.minLoopSize  < 1 || this.minLoopSize  > rnaSequence.getLength()) {
+            throw new IllegalArgumentException("Invalid minimum loop size!");
+        }
 
         this.nucleotidePairsMapping = energyScoresMap;
         this.rnaSequence = rnaSequence;
@@ -39,7 +48,6 @@ public final class NussinovAlgorithm {
 
         this.rnaSecondaryStruct = applyAlgorithm();
     }
-
 
     private RnaSecondaryStruct applyAlgorithm() {
         createNussinovMatrix();
@@ -56,36 +64,30 @@ public final class NussinovAlgorithm {
 
         final List<RnaNucleotide> rnaSequenceAsList = rnaSequence.getAsList();
 
-        IntStream.range(1, rnaSequenceLength).forEach(i -> {
+        IntStream.range(minLoopSize, rnaSequenceLength).forEach(i ->
             IntStream.range(i, rnaSequenceLength).forEach(j -> {
                 final int n = j - i;
 
-                final int case1 = nussinovMatrix[n + 1][j - 1] +
+                final int down = nussinovMatrix[n + 1][j];
+                final int left = nussinovMatrix[n][j - 1];
+                final int diag = nussinovMatrix[n + 1][j - 1] +
                         nucleotidePairsMapping.get(UnorderedPair.of(rnaSequenceAsList.get(n), rnaSequenceAsList.get(j)));
 
-                final int case2 = nussinovMatrix[n + 1][j];
-                final int case3 = nussinovMatrix[n][j - 1];
 
-                if(n + 3 <= j) {
+                int currentMax = 0;
 
-                    int tmp = 0;
-
-                    for(int k = n + 1; k < j; k++) {
-                        if((nussinovMatrix[n][k] + nussinovMatrix[k + 1][j]) > tmp) {
-                            tmp = nussinovMatrix[n][k] + nussinovMatrix[k + 1][j];
-                        }
-
-                        nussinovMatrix[n][j] = Math.max(
-                                Math.max(case1, case2),
-                                Math.max(case3, tmp)
-                        );
-
+                for(int k = n; k < j; k++) {
+                    if((nussinovMatrix[n][k] + nussinovMatrix[k + 1][j]) > currentMax) {
+                        currentMax = nussinovMatrix[n][k] + nussinovMatrix[k + 1][j];
                     }
-                } else {
-                    nussinovMatrix[n][j] = Math.max(Math.max(case1, case2), case3);
                 }
-            });
-        });
+
+                nussinovMatrix[n][j] = Math.max(
+                        Math.max(down, left),
+                        Math.max(diag, currentMax)
+                );
+            })
+        );
     }
 
     /*
