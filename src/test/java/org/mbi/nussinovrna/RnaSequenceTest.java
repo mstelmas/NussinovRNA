@@ -1,5 +1,6 @@
 package org.mbi.nussinovrna;
 
+import org.junit.Ignore;
 import org.junit.Test;
 import org.mbi.nussinovrna.rna.RnaNucleotide;
 import org.mbi.nussinovrna.rna.RnaSequence;
@@ -31,6 +32,7 @@ public class RnaSequenceTest {
         RnaSequence.of(null);
     }
 
+    @Ignore
     @Test(expected = IllegalArgumentException.class)
     public void shouldNotAllowProperRnaSequenceOfOddLengthName() {
         RnaSequence.of("AGUCGUACC");

@@ -29,9 +29,9 @@ public final class RnaSequence {
             throw new IllegalArgumentException("RNASequence cannot be empty!");
         }
 
-        if(upperCasedSequence.length() % 2 != 0) {
-            throw new IllegalArgumentException("RNASequence cannot be of odd length!");
-        }
+//        if(upperCasedSequence.length() % 2 != 0) {
+//            throw new IllegalArgumentException("RNASequence cannot be of odd length!");
+//        }
 
         validateSequenceIntegrity(upperCasedSequence);
 
